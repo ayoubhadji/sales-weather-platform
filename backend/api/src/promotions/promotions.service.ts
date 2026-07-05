@@ -1,26 +1,44 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Promotion } from './entities/promotion.entity';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
 
 @Injectable()
 export class PromotionsService {
-  create(createPromotionDto: CreatePromotionDto) {
-    return 'This action adds a new promotion';
+  constructor(
+    @InjectRepository(Promotion)
+    private readonly promotionRepository: Repository<Promotion>,
+  ) {}
+
+  async create(createPromotionDto: CreatePromotionDto): Promise<Promotion> {
+    const promotion = this.promotionRepository.create(createPromotionDto);
+    return this.promotionRepository.save(promotion);
   }
 
-  findAll() {
-    return `This action returns all promotions`;
+  async findAll(): Promise<Promotion[]> {
+    return this.promotionRepository.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} promotion`;
+  async findOne(id: number): Promise<Promotion> {
+    const promotion = await this.promotionRepository.findOne({ where: { id } });
+
+    if (!promotion) {
+      throw new NotFoundException(`Promotion with ID ${id} not found.`);
+    }
+
+    return promotion;
   }
 
-  update(id: number, updatePromotionDto: UpdatePromotionDto) {
-    return `This action updates a #${id} promotion`;
+  async update(id: number, updatePromotionDto: UpdatePromotionDto): Promise<Promotion> {
+    const promotion = await this.findOne(id);
+    Object.assign(promotion, updatePromotionDto);
+    return this.promotionRepository.save(promotion);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} promotion`;
+  async remove(id: number): Promise<void> {
+    const promotion = await this.findOne(id);
+    await this.promotionRepository.remove(promotion);
   }
 }
