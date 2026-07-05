@@ -1,15 +1,14 @@
-import { IsNumber, IsPositive } from 'class-validator';
+import { IsInt, IsNumber, IsPositive } from 'class-validator';
 
 export class CreateSalesItemDto {
+
+  @IsInt()
+  ticket!: number;
+
+  @IsInt()
+  product!: number;
+
   @IsNumber()
   @IsPositive()
   quantity!: number;
-
-  @IsNumber()
-  @IsPositive()
-  unitPrice!: number;
-
-  @IsNumber()
-  @IsPositive()
-  subtotal!: number;
 }
