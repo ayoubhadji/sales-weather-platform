@@ -4,18 +4,38 @@ import { Repository } from 'typeorm';
 import { Promotion } from './entities/promotion.entity';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
+import { Product } from 'src/products/entities/product.entity';
 
 @Injectable()
 export class PromotionsService {
   constructor(
     @InjectRepository(Promotion)
     private readonly promotionRepository: Repository<Promotion>,
+
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
   ) {}
 
   async create(createPromotionDto: CreatePromotionDto): Promise<Promotion> {
-    const promotion = this.promotionRepository.create(createPromotionDto);
-    return this.promotionRepository.save(promotion);
+
+  const product = await this.productRepository.findOne({
+    where: { id: createPromotionDto.productId },
+  });
+
+  if (!product) {
+    throw new NotFoundException('Product not found');
   }
+
+  const promotion = this.promotionRepository.create({
+    product,
+    discountPercentage: createPromotionDto.discountPercentage,
+    reason: createPromotionDto.reason,
+    startDate: createPromotionDto.startDate,
+    endDate: createPromotionDto.endDate,
+  });
+
+  return await this.promotionRepository.save(promotion);
+}
 
   async findAll(): Promise<Promotion[]> {
     return this.promotionRepository.find();
