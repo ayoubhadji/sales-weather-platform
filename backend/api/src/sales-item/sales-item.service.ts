@@ -48,7 +48,15 @@ export class SalesItemService {
     subtotal: Number(product.price) * createSalesItemDto.quantity,
   });
 
-  return await this.salesItemRepository.save(salesItem);
+  //return await this.salesItemRepository.save(salesItem);
+
+  const savedItem = await this.salesItemRepository.save(salesItem);
+
+// Recalculate the ticket total
+await this.updateTicketTotal(ticket.id);
+
+return savedItem;
+  
 }
 
   async findAll(): Promise<SalesItem[]> {
@@ -56,7 +64,14 @@ export class SalesItemService {
   }
 
   async findOne(id: number): Promise<SalesItem> {
-    const salesItem = await this.salesItemRepository.findOne({ where: { id } });
+    //const salesItem = await this.salesItemRepository.findOne({ where: { id } });
+    const salesItem = await this.salesItemRepository.findOne({
+    where: { id },
+    relations: {
+      ticket: true,
+      product: true,
+    },
+  });
 
     if (!salesItem) {
       throw new NotFoundException(`Sales item with ID ${id} not found.`);
@@ -65,14 +80,68 @@ export class SalesItemService {
     return salesItem;
   }
 
-  async update(id: number, updateSalesItemDto: UpdateSalesItemDto): Promise<SalesItem> {
-    const salesItem = await this.findOne(id);
-    Object.assign(salesItem, updateSalesItemDto);
-    return this.salesItemRepository.save(salesItem);
+async update(
+  id: number,
+  updateSalesItemDto: UpdateSalesItemDto,
+): Promise<SalesItem> {
+
+  const salesItem = await this.findOne(id);
+
+  // If quantity changes, recalculate subtotal
+  if (updateSalesItemDto.quantity !== undefined) {
+    salesItem.quantity = updateSalesItemDto.quantity;
+    salesItem.subtotal =
+      Number(salesItem.unitPrice) * salesItem.quantity;
   }
+
+  const updatedItem = await this.salesItemRepository.save(salesItem);
+
+  // Update the ticket total
+  await this.updateTicketTotal(salesItem.ticket.id);
+
+  return updatedItem;
+}
 
   async remove(id: number): Promise<void> {
     const salesItem = await this.findOne(id);
+
+    const ticketId = salesItem.ticket.id;
+
     await this.salesItemRepository.remove(salesItem);
+
+    // Recalculate ticket total
+    await this.updateTicketTotal(ticketId);
   }
+
+  private async updateTicketTotal(ticketId: number): Promise<void> {
+  // Get all items belonging to the ticket
+  const items = await this.salesItemRepository.find({
+    where: {
+      ticket: {
+        id: ticketId,
+      },
+    },
+  });
+
+  // Calculate the total amount
+  const total = items.reduce(
+    (sum, item) => sum + Number(item.subtotal),
+    0,
+  );
+
+  // Load the ticket
+  const ticket = await this.salesTicketRepository.findOne({
+    where: { id: ticketId },
+  });
+
+  if (!ticket) {
+    throw new NotFoundException('Sales ticket not found');
+  }
+
+  // Update the total
+  ticket.totalAmount = total;
+
+  // Save
+  await this.salesTicketRepository.save(ticket);
+}
 }

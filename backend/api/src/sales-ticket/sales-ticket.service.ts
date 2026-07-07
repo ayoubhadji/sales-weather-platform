@@ -12,9 +12,31 @@ export class SalesTicketService {
     private readonly salesTicketRepository: Repository<SalesTicket>,
   ) {}
 
-  async create(createSalesTicketDto: CreateSalesTicketDto): Promise<SalesTicket> {
-    const salesTicket = this.salesTicketRepository.create(createSalesTicketDto);
-    return this.salesTicketRepository.save(salesTicket);
+    async create(createSalesTicketDto: CreateSalesTicketDto,): Promise<SalesTicket> {
+
+    // Find the last created ticket
+    const lastTicket = await this.salesTicketRepository.find({
+      order: {
+        id: 'DESC',
+      },
+      take: 1,
+    });
+
+    let nextNumber = 1;
+
+    if (lastTicket.length > 0) {
+      nextNumber = lastTicket[0].id + 1;
+    }
+
+    const ticketNumber = `TK${String(nextNumber).padStart(6, '0')}`;
+
+    const salesTicket = this.salesTicketRepository.create({
+      ticketNumber,
+      saleDate: createSalesTicketDto.saleDate,
+      totalAmount: 0,
+    });
+
+    return await this.salesTicketRepository.save(salesTicket);
   }
 
   async findAll(): Promise<SalesTicket[]> {
