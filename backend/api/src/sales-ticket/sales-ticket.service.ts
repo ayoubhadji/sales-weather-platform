@@ -18,18 +18,33 @@ export class SalesTicketService {
   }
 
   async findAll(): Promise<SalesTicket[]> {
-    return this.salesTicketRepository.find();
+    return this.salesTicketRepository.find({
+      relations: {
+        items: {
+          product: true,
+        },
+      },
+    });
   }
 
   async findOne(id: number): Promise<SalesTicket> {
-    const salesTicket = await this.salesTicketRepository.findOne({ where: { id } });
+  const salesTicket = await this.salesTicketRepository.findOne({
+    where: { id },
+    relations: {
+      items: {
+        product: true,
+      },
+    },
+  });
 
-    if (!salesTicket) {
-      throw new NotFoundException(`Sales ticket with ID ${id} not found.`);
-    }
-
-    return salesTicket;
+  if (!salesTicket) {
+    throw new NotFoundException(
+      `Sales ticket with ID ${id} not found.`,
+    );
   }
+
+  return salesTicket;
+}
 
   async update(
     id: number,
