@@ -1,11 +1,13 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import Navbar from "../components/Navbar";
 
 function MainLayout() {
   return (
     <div
       style={{
         display: "flex",
+        minHeight: "100vh",
       }}
     >
       <Sidebar />
@@ -13,10 +15,20 @@ function MainLayout() {
       <div
         style={{
           flex: 1,
-          padding: "30px",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <Outlet />
+        <Navbar />
+
+        <main
+          style={{
+            flex: 1,
+            padding: "30px",
+          }}
+        >
+          <Outlet />
+        </main>
       </div>
     </div>
   );

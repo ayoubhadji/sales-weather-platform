@@ -1,27 +1,43 @@
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
 function Sidebar() {
+  const menuItems = [
+    { name: "Dashboard", path: "/" },
+    { name: "Products", path: "/products" },
+    { name: "Weather", path: "/weather" },
+    { name: "Sales", path: "/sales" },
+    { name: "Predictions", path: "/predictions" },
+    { name: "Promotions", path: "/promotions" },
+    { name: "Alerts", path: "/alerts" },
+  ];
+
   return (
     <div
       style={{
         width: "220px",
-        background: "#2c3e50",
+        backgroundColor: "#1e293b",
         color: "white",
-        padding: "20px",
         minHeight: "100vh",
+        padding: "20px",
       }}
     >
-      <h2>SWP</h2>
+      <h2>🌦 SWP</h2>
 
       <hr />
 
-      <p><Link to="/">Dashboard</Link></p>
-      <p><Link to="/products">Products</Link></p>
-      <p><Link to="/weather">Weather</Link></p>
-      <p><Link to="/sales">Sales</Link></p>
-      <p><Link to="/predictions">Predictions</Link></p>
-      <p><Link to="/promotions">Promotions</Link></p>
-      <p><Link to="/alerts">Alerts</Link></p>
+      {menuItems.map((item) => (
+        <div key={item.path} style={{ margin: "20px 0" }}>
+          <NavLink
+            to={item.path}
+            style={{
+              color: "white",
+              textDecoration: "none",
+            }}
+          >
+            {item.name}
+          </NavLink>
+        </div>
+      ))}
     </div>
   );
 }
