@@ -2,10 +2,19 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { WeatherService } from './weather.service';
 import { CreateWeatherDto } from './dto/create-weather.dto';
 import { UpdateWeatherDto } from './dto/update-weather.dto';
+import { WeatherApiService } from './weather-api.service';
 
 @Controller('weather')
 export class WeatherController {
-  constructor(private readonly weatherService: WeatherService) {}
+  constructor(
+    private readonly weatherService: WeatherService,
+    private readonly weatherApiService: WeatherApiService,
+) {}
+
+  @Get('current')
+  async getCurrentWeather() {
+      return this.weatherApiService.getCurrentWeather();
+  }
 
   @Post()
   create(@Body() createWeatherDto: CreateWeatherDto) {

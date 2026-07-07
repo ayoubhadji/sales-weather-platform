@@ -3,11 +3,12 @@ import { WeatherService } from './weather.service';
 import { WeatherController } from './weather.controller';
 import { TypeOrmModule } from '@nestjs/typeorm/dist/typeorm.module';
 import { Weather } from './entities/weather.entity';
+import { WeatherApiService } from './weather-api.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Weather])],
   controllers: [WeatherController],
-  providers: [WeatherService],
+  providers: [WeatherService, WeatherApiService],
   exports: [TypeOrmModule],
   
 })
