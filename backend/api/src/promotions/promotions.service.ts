@@ -17,25 +17,24 @@ export class PromotionsService {
   ) {}
 
   async create(createPromotionDto: CreatePromotionDto): Promise<Promotion> {
+    const product = await this.productRepository.findOne({
+      where: { id: createPromotionDto.productId },
+    });
 
-  const product = await this.productRepository.findOne({
-    where: { id: createPromotionDto.productId },
-  });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
 
-  if (!product) {
-    throw new NotFoundException('Product not found');
+    const promotion = this.promotionRepository.create({
+      product,
+      discountPercentage: createPromotionDto.discountPercentage,
+      reason: createPromotionDto.reason,
+      startDate: createPromotionDto.startDate,
+      endDate: createPromotionDto.endDate,
+    });
+
+    return await this.promotionRepository.save(promotion);
   }
-
-  const promotion = this.promotionRepository.create({
-    product,
-    discountPercentage: createPromotionDto.discountPercentage,
-    reason: createPromotionDto.reason,
-    startDate: createPromotionDto.startDate,
-    endDate: createPromotionDto.endDate,
-  });
-
-  return await this.promotionRepository.save(promotion);
-}
 
   async findAll(): Promise<Promotion[]> {
     return this.promotionRepository.find();
@@ -51,7 +50,10 @@ export class PromotionsService {
     return promotion;
   }
 
-  async update(id: number, updatePromotionDto: UpdatePromotionDto): Promise<Promotion> {
+  async update(
+    id: number,
+    updatePromotionDto: UpdatePromotionDto,
+  ): Promise<Promotion> {
     const promotion = await this.findOne(id);
     Object.assign(promotion, updatePromotionDto);
     return this.promotionRepository.save(promotion);

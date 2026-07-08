@@ -5,7 +5,9 @@ describe('SalesItemController', () => {
   let controller: SalesItemController;
 
   beforeEach(() => {
-    controller = new SalesItemController(new SalesItemService(undefined as any));
+    controller = new SalesItemController(
+      new SalesItemService(undefined as any),
+    );
   });
 
   it('should be defined', () => {

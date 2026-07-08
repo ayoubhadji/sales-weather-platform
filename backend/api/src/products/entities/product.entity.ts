@@ -30,5 +30,4 @@ export class Product {
     scale: 2,
   })
   price!: number;
-
 }

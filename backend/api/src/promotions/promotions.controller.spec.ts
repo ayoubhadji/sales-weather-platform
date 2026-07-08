@@ -5,7 +5,9 @@ describe('PromotionsController', () => {
   let controller: PromotionsController;
 
   beforeEach(() => {
-    controller = new PromotionsController(new PromotionsService(undefined as any));
+    controller = new PromotionsController(
+      new PromotionsService(undefined as any),
+    );
   });
 
   it('should be defined', () => {

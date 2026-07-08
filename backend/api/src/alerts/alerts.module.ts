@@ -9,6 +9,5 @@ import { Alert } from './entities/alert.entity';
   controllers: [AlertsController],
   providers: [AlertsService],
   exports: [TypeOrmModule],
-  
 })
 export class AlertsModule {}

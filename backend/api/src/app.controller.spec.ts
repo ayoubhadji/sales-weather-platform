@@ -16,7 +16,9 @@ describe('AppController', () => {
 
   describe('root', () => {
     it('should return "Welcome to Sales Weather Platform!"', () => {
-      expect(appController.getHello()).toBe('Welcome to Sales Weather Platform!');
+      expect(appController.getHello()).toBe(
+        'Welcome to Sales Weather Platform!',
+      );
     });
   });
 });

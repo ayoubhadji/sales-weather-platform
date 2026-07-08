@@ -9,7 +9,6 @@ import { UpdateProductDto } from './dto/update-product.dto';
 // Marks this class as a NestJS service that can be injected elsewhere
 @Injectable()
 export class ProductsService {
-
   // Inject the Product repository
   // This repository allows us to communicate with the database
   constructor(
@@ -21,7 +20,6 @@ export class ProductsService {
    * Equivalent SQL:INSERT INTO products (...)
    */
   async create(createProductDto: CreateProductDto): Promise<Product> {
-
     // Create a Product object from the DTO
     // (Nothing is saved yet)
     const product = this.productsRepository.create(createProductDto);
@@ -35,7 +33,6 @@ export class ProductsService {
    * Equivalent SQL: SELECT * FROM products;
    */
   async findAll(): Promise<Product[]> {
-
     // Return all products from the database
     return await this.productsRepository.find();
   }
@@ -45,7 +42,6 @@ export class ProductsService {
    * Equivalent SQL: SELECT * FROM products WHERE id = ?;
    */
   async findOne(id: number): Promise<Product> {
-
     // Search for a product with the given ID
     const product = await this.productsRepository.findOne({
       where: { id },
@@ -67,7 +63,6 @@ export class ProductsService {
     id: number,
     updateProductDto: UpdateProductDto,
   ): Promise<Product> {
-
     // First, make sure the product exists
     const product = await this.findOne(id);
 
@@ -83,7 +78,6 @@ export class ProductsService {
    * Equivalent SQL: DELETE FROM products WHERE id = ?;
    */
   async remove(id: number): Promise<void> {
-
     // Verify the product exists
     const product = await this.findOne(id);
 

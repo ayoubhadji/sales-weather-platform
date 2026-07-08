@@ -31,7 +31,10 @@ export class WeatherService {
     return weather;
   }
 
-  async update(id: number, updateWeatherDto: UpdateWeatherDto): Promise<Weather> {
+  async update(
+    id: number,
+    updateWeatherDto: UpdateWeatherDto,
+  ): Promise<Weather> {
     const weather = await this.findOne(id);
     Object.assign(weather, updateWeatherDto);
     return this.weatherRepository.save(weather);

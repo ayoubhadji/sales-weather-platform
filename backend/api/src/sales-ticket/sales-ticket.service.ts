@@ -12,8 +12,9 @@ export class SalesTicketService {
     private readonly salesTicketRepository: Repository<SalesTicket>,
   ) {}
 
-    async create(createSalesTicketDto: CreateSalesTicketDto,): Promise<SalesTicket> {
-
+  async create(
+    createSalesTicketDto: CreateSalesTicketDto,
+  ): Promise<SalesTicket> {
     // Find the last created ticket
     const lastTicket = await this.salesTicketRepository.find({
       order: {
@@ -50,23 +51,21 @@ export class SalesTicketService {
   }
 
   async findOne(id: number): Promise<SalesTicket> {
-  const salesTicket = await this.salesTicketRepository.findOne({
-    where: { id },
-    relations: {
-      items: {
-        product: true,
+    const salesTicket = await this.salesTicketRepository.findOne({
+      where: { id },
+      relations: {
+        items: {
+          product: true,
+        },
       },
-    },
-  });
+    });
 
-  if (!salesTicket) {
-    throw new NotFoundException(
-      `Sales ticket with ID ${id} not found.`,
-    );
+    if (!salesTicket) {
+      throw new NotFoundException(`Sales ticket with ID ${id} not found.`);
+    }
+
+    return salesTicket;
   }
-
-  return salesTicket;
-}
 
   async update(
     id: number,

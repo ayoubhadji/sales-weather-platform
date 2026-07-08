@@ -12,8 +12,12 @@ export class SalesPredictionsService {
     private readonly salesPredictionRepository: Repository<SalesPrediction>,
   ) {}
 
-  async create(createSalesPredictionDto: CreateSalesPredictionDto): Promise<SalesPrediction> {
-    const salesPrediction = this.salesPredictionRepository.create(createSalesPredictionDto);
+  async create(
+    createSalesPredictionDto: CreateSalesPredictionDto,
+  ): Promise<SalesPrediction> {
+    const salesPrediction = this.salesPredictionRepository.create(
+      createSalesPredictionDto,
+    );
     return this.salesPredictionRepository.save(salesPrediction);
   }
 
@@ -22,7 +26,9 @@ export class SalesPredictionsService {
   }
 
   async findOne(id: number): Promise<SalesPrediction> {
-    const salesPrediction = await this.salesPredictionRepository.findOne({ where: { id } });
+    const salesPrediction = await this.salesPredictionRepository.findOne({
+      where: { id },
+    });
 
     if (!salesPrediction) {
       throw new NotFoundException(`Sales prediction with ID ${id} not found.`);

@@ -9,6 +9,5 @@ import { SalesPrediction } from './entities/sales-prediction.entity';
   controllers: [SalesPredictionsController],
   providers: [SalesPredictionsService],
   exports: [TypeOrmModule],
-  
 })
 export class SalesPredictionsModule {}

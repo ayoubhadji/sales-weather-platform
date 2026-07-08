@@ -12,7 +12,6 @@ import { SalesPredictionsModule } from './sales-predictions/sales-predictions.mo
 import { PromotionsModule } from './promotions/promotions.module';
 import { AlertsModule } from './alerts/alerts.module';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -30,7 +29,6 @@ import { AlertsModule } from './alerts/alerts.module';
       autoLoadEntities: true,
       synchronize: true,
     }),
-
 
     ProductsModule,
 

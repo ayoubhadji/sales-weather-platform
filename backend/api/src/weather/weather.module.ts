@@ -10,6 +10,5 @@ import { WeatherApiService } from './weather-api.service';
   controllers: [WeatherController],
   providers: [WeatherService, WeatherApiService],
   exports: [TypeOrmModule],
-  
 })
 export class WeatherModule {}

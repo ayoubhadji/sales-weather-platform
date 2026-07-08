@@ -41,10 +41,9 @@ export class SalesPrediction {
   createdAt!: Date;
 
   @Column({
-  type: 'decimal',
-  precision: 10,
-  scale: 2,
-})
-predictedRevenue!: number;
-
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+  })
+  predictedRevenue!: number;
 }

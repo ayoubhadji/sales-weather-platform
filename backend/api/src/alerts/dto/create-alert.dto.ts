@@ -1,4 +1,10 @@
-import { IsBoolean, IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { AlertSeverity } from '../../common/enums/alert-severity.enum';
 
 export class CreateAlertDto {

@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { WeatherService } from './weather.service';
 import { CreateWeatherDto } from './dto/create-weather.dto';
 import { UpdateWeatherDto } from './dto/update-weather.dto';
@@ -9,11 +17,11 @@ export class WeatherController {
   constructor(
     private readonly weatherService: WeatherService,
     private readonly weatherApiService: WeatherApiService,
-) {}
+  ) {}
 
   @Get('current')
   async getCurrentWeather() {
-      return this.weatherApiService.getCurrentWeather();
+    return this.weatherApiService.getCurrentWeather();
   }
 
   //with empty body, this endpoint will fetch the current weather from the external API (open-meteo) and save it to the database
@@ -26,6 +34,11 @@ export class WeatherController {
   @Post()
   create(@Body() createWeatherDto: CreateWeatherDto) {
     return this.weatherService.create(createWeatherDto);
+  }
+  
+  @Get('forecast')
+  async getForecast() {
+    return this.weatherApiService.getForecast();
   }
 
   @Get()

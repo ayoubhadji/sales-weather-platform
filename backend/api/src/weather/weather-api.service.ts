@@ -7,17 +7,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class WeatherApiService {
-    constructor(
-  @InjectRepository(Weather)
-  private readonly weatherRepository: Repository<Weather>,
-) {}    
+  constructor(
+    @InjectRepository(Weather)
+    private readonly weatherRepository: Repository<Weather>,
+  ) {}
 
   async getCurrentWeather() {
-
-    const latitude = 36.8065;     // Tunis
+    const latitude = 36.8065; // Tunis
     const longitude = 10.1815;
 
-        const url =
+    const url =
       `https://api.open-meteo.com/v1/forecast` +
       `?latitude=${latitude}` +
       `&longitude=${longitude}` +
@@ -38,76 +37,100 @@ export class WeatherApiService {
     };
   }
 
-//Open-Meteo doesn't return weatherCondition Instead it returns a weather code
+  //Open-Meteo doesn't return weatherCondition Instead it returns a weather code
 
-private mapWeatherCondition(weatherCode: number): WeatherCondition {
+  private mapWeatherCondition(weatherCode: number): WeatherCondition {
+    switch (weatherCode) {
+      // Clear sky
+      case 0:
+        return WeatherCondition.SUNNY;
 
-  switch (weatherCode) {
+      // Mainly clear, partly cloudy, overcast
+      case 1:
+      case 2:
+      case 3:
+        return WeatherCondition.CLOUDY;
 
-    // Clear sky
-    case 0:
-      return WeatherCondition.SUNNY;
+      // Fog
+      case 45:
+      case 48:
+        return WeatherCondition.FOG;
 
-    // Mainly clear, partly cloudy, overcast
-    case 1:
-    case 2:
-    case 3:
-      return WeatherCondition.CLOUDY;
+      // Rain
+      case 51:
+      case 53:
+      case 55:
+      case 61:
+      case 63:
+      case 65:
+      case 80:
+      case 81:
+      case 82:
+        return WeatherCondition.RAINY;
 
-    // Fog
-    case 45:
-    case 48:
-      return WeatherCondition.FOG;
+      // Thunderstorm
+      case 95:
+      case 96:
+      case 99:
+        return WeatherCondition.STORM;
 
-    // Rain
-    case 51:
-    case 53:
-    case 55:
-    case 61:
-    case 63:
-    case 65:
-    case 80:
-    case 81:
-    case 82:
-      return WeatherCondition.RAINY;
-
-    // Thunderstorm
-    case 95:
-    case 96:
-    case 99:
-      return WeatherCondition.STORM;
-
-    default:
-      return WeatherCondition.CLOUDY;
+      default:
+        return WeatherCondition.CLOUDY;
+    }
   }
-}
 
-async importCurrentWeather(): Promise<Weather> {
+  async importCurrentWeather(): Promise<Weather> {
     const currentWeather = await this.getCurrentWeather();
-      // Check if today's weather already exists
+    // Check if today's weather already exists
     const existingWeather = await this.weatherRepository.findOne({
-        where: {
+      where: {
         weatherDate: new Date(currentWeather.weatherDate),
-        },
+      },
     });
 
     if (existingWeather) {
-        return existingWeather;
+      return existingWeather;
     }
 
-        // Create a new weather record
+    // Create a new weather record
     const weather = this.weatherRepository.create({
-  weatherDate: new Date(currentWeather.weatherDate),
-  temperature: currentWeather.temperature,
-  humidity: currentWeather.humidity,
-  rainfall: currentWeather.rainfall,
-  windSpeed: currentWeather.windSpeed,
-  weatherCondition: currentWeather.weatherCondition,
-});
+      weatherDate: new Date(currentWeather.weatherDate),
+      temperature: currentWeather.temperature,
+      humidity: currentWeather.humidity,
+      rainfall: currentWeather.rainfall,
+      windSpeed: currentWeather.windSpeed,
+      weatherCondition: currentWeather.weatherCondition,
+    });
 
-const savedWeather = await this.weatherRepository.save(weather);
-return savedWeather;
+    const savedWeather = await this.weatherRepository.save(weather);
+    return savedWeather;
+  }
 
+  async getForecast() {
+
+  const latitude = 36.8065;
+  const longitude = 10.1815;
+
+  const url =
+    `https://api.open-meteo.com/v1/forecast` +
+    `?latitude=${latitude}` +
+    `&longitude=${longitude}` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum` +
+    `&forecast_days=7`;
+
+  const response = await axios.get(url);
+
+  const daily = response.data.daily;
+
+  return daily.time.map((date: string, index: number) => ({
+    date,
+    maxTemperature: daily.temperature_2m_max[index],
+    minTemperature: daily.temperature_2m_min[index],
+    rainfall: daily.precipitation_sum[index],
+    weatherCondition: this.mapWeatherCondition(
+      daily.weather_code[index],
+    ),
+  }));
 }
 
 }

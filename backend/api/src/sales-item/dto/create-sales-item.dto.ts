@@ -1,7 +1,6 @@
 import { IsInt, IsNumber, IsPositive } from 'class-validator';
 
 export class CreateSalesItemDto {
-
   @IsInt()
   ticket!: number;
 
