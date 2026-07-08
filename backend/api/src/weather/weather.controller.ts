@@ -16,6 +16,13 @@ export class WeatherController {
       return this.weatherApiService.getCurrentWeather();
   }
 
+  //with empty body, this endpoint will fetch the current weather from the external API (open-meteo) and save it to the database
+  @Post('import')
+  async importCurrentWeather() {
+    return this.weatherApiService.importCurrentWeather();
+  }
+
+  // need a body with the following structure to create a new weather record
   @Post()
   create(@Body() createWeatherDto: CreateWeatherDto) {
     return this.weatherService.create(createWeatherDto);

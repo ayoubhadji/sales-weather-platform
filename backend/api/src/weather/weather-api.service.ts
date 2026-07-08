@@ -1,9 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { WeatherCondition } from 'src/common/enums/weather-condition.enum';
+import { Repository } from 'typeorm';
+import { Weather } from './entities/weather.entity';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class WeatherApiService {
+    constructor(
+  @InjectRepository(Weather)
+  private readonly weatherRepository: Repository<Weather>,
+) {}    
 
   async getCurrentWeather() {
 
@@ -73,6 +80,22 @@ private mapWeatherCondition(weatherCode: number): WeatherCondition {
     default:
       return WeatherCondition.CLOUDY;
   }
+}
+
+async importCurrentWeather(): Promise<Weather> {
+    const currentWeather = await this.getCurrentWeather();
+    const weather = this.weatherRepository.create({
+  weatherDate: new Date(currentWeather.weatherDate),
+  temperature: currentWeather.temperature,
+  humidity: currentWeather.humidity,
+  rainfall: currentWeather.rainfall,
+  windSpeed: currentWeather.windSpeed,
+  weatherCondition: currentWeather.weatherCondition,
+});
+
+const savedWeather = await this.weatherRepository.save(weather);
+return savedWeather;
+
 }
 
 }
