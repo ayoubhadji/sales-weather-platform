@@ -84,6 +84,18 @@ private mapWeatherCondition(weatherCode: number): WeatherCondition {
 
 async importCurrentWeather(): Promise<Weather> {
     const currentWeather = await this.getCurrentWeather();
+      // Check if today's weather already exists
+    const existingWeather = await this.weatherRepository.findOne({
+        where: {
+        weatherDate: new Date(currentWeather.weatherDate),
+        },
+    });
+
+    if (existingWeather) {
+        return existingWeather;
+    }
+
+        // Create a new weather record
     const weather = this.weatherRepository.create({
   weatherDate: new Date(currentWeather.weatherDate),
   temperature: currentWeather.temperature,
