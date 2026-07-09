@@ -12,6 +12,7 @@ import { SalesPredictionsModule } from './sales-predictions/sales-predictions.mo
 import { PromotionsModule } from './promotions/promotions.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -46,6 +47,8 @@ import { UsersModule } from './users/users.module';
     AlertsModule,
 
     UsersModule,
+
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
