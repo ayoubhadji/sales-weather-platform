@@ -11,6 +11,7 @@ import { WeatherModule } from './weather/weather.module';
 import { SalesPredictionsModule } from './sales-predictions/sales-predictions.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -43,6 +44,8 @@ import { AlertsModule } from './alerts/alerts.module';
     PromotionsModule,
 
     AlertsModule,
+
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
