@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
-import { UnauthorizedException } from '@nestjs/common/exceptions';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common/exceptions';
 
 @Injectable()
 export class AuthService {
@@ -42,6 +42,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.isActive) {
+      throw new ForbiddenException(
+        "Your franchise account has been blocked. Please contact the administrator.",
+      );
+    }
+
     const payload = {
       sub: user.id,
       email: user.email,
@@ -49,7 +55,13 @@ export class AuthService {
     };
 
     return {
-      access_token: await this.jwtService.signAsync(payload),
-    };
+    access_token: await this.jwtService.signAsync(payload),
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+  };
   }
 }

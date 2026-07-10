@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRole } from 'src/common/enums/user-role.enum';
 
 @Injectable()
 export class UsersService {
@@ -28,6 +29,13 @@ export class UsersService {
   async findAll(): Promise<User[]> {
     return this.userRepository.find();
   }
+  async findFranchises(): Promise<User[]> {
+  return this.userRepository.find({
+    where: {
+      role: UserRole.FRANCHISE,
+    },
+  });
+}
 
   async findOne(id: number): Promise<User> {
     const user = await this.userRepository.findOne({
@@ -48,6 +56,14 @@ export class UsersService {
     const user = await this.findOne(id);
 
     Object.assign(user, updateUserDto);
+
+    return this.userRepository.save(user);
+  }
+
+  async toggleStatus(id: number): Promise<User> {
+    const user = await this.findOne(id);
+
+    user.isActive = !user.isActive;
 
     return this.userRepository.save(user);
   }

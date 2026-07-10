@@ -17,10 +17,16 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Get('franchises')
+  findFranchises() {
+    return this.usersService.findFranchises();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(+id);
   }
+  
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
@@ -30,5 +36,9 @@ export class UsersController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.usersService.remove(+id);
+  }
+  @Patch(':id/toggle-status')
+  toggleStatus(@Param('id') id: string) {
+    return this.usersService.toggleStatus(+id);
   }
 }
