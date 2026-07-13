@@ -7,11 +7,16 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+   UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 @Controller('products')
 export class ProductsController {
@@ -21,6 +26,32 @@ export class ProductsController {
   @Post()
   create(@Body() createProductDto: CreateProductDto) {
     return this.productsService.create(createProductDto);
+  }
+
+  @Post('upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/products',
+
+        filename: (req, file, callback) => {
+          const uniqueName =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+
+          callback(
+            null,
+            uniqueName + extname(file.originalname),
+          );
+        },
+      }),
+    }),
+  )
+  uploadProductImage(
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return {
+      imageUrl: `/uploads/products/${file.filename}`,
+    };
   }
 
   // GET /products

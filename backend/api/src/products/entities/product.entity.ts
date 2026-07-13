@@ -30,4 +30,9 @@ export class Product {
     scale: 2,
   })
   price!: number;
+
+  @Column({
+  nullable: true,
+})
+imageUrl?: string;
 }

@@ -16,6 +16,8 @@ function AddProduct() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState(categoryOptions[0]);
   const [price, setPrice] = useState("");
+  const [image, setImage] = useState<File | null>(null);
+  const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,11 +27,32 @@ function AddProduct() {
     setLoading(true);
 
     try {
-      await api.post("/products", {
-        name,
-        category,
-        price: Number(price),
-      });
+      let imageUrl: string | null = null;
+
+if (image) {
+  const formData = new FormData();
+
+  formData.append("file", image);
+
+  const uploadResponse = await api.post(
+    "/products/upload",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  );
+
+  imageUrl = uploadResponse.data.imageUrl;
+}
+
+await api.post("/products", {
+  name,
+  category,
+  price: Number(price),
+  imageUrl,
+});
 
       navigate("/admin/products");
     } catch (submitError) {
@@ -72,6 +95,36 @@ function AddProduct() {
             style={inputStyle}
             required
           />
+        </Field>
+        <Field label="Product Image">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              if (!e.target.files?.length) return;
+
+              const file = e.target.files[0];
+
+              setImage(file);
+              setPreview(URL.createObjectURL(file));
+            }}
+            style={inputStyle}
+          />
+
+          {preview && (
+            <img
+              src={preview}
+              alt="Preview"
+              style={{
+                width: 180,
+                height: 180,
+                marginTop: 12,
+                objectFit: "cover",
+                borderRadius: 12,
+                border: "1px solid #ddd",
+              }}
+            />
+          )}
         </Field>
 
         {error && <div style={errorStyle}>{error}</div>}

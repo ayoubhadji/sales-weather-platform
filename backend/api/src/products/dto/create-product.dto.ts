@@ -5,6 +5,7 @@ import {
   IsPositive,
   IsString,
   MaxLength,
+  IsOptional,
 } from 'class-validator';
 import { ProductCategory } from '../../common/enums/product-category.enum';
 
@@ -20,4 +21,8 @@ export class CreateProductDto {
   @IsNumber()
   @IsPositive()
   price!: number;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
