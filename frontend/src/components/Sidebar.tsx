@@ -48,7 +48,7 @@ const adminNavItems: NavItem[] = [
   { label: "Predictions", icon: CloudSun, path: "/admin/predictions" },
   { label: "Alertes", icon: Bell, path: "/admin/alerts" },
   { label: "Franchises", icon: Store, path: "/admin/franchises" },
-  { label: "Utilisateurs", icon: Users, path: "/admin/users" },
+  { label: "Weather", icon: CloudSun, path: "/admin/weather" },
   { label: "Rapports", icon: FileText, path: "/admin/reports" },
   { label: "Parametres", icon: Settings, path: "/admin/settings" },
 ];

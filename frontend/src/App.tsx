@@ -12,6 +12,7 @@ import AdminSales from "./pages/admin/Sales";
 import AdminPredictions from "./pages/admin/Predictions";
 import AdminPromotions from "./pages/admin/Promotions";
 import AdminAlerts from "./pages/admin/Alerts";
+import AdminWeather from "./pages/admin/Weather";
 
 import FranchiseLayout from "./layouts/FranchiseLayout";
 import FranchiseDashboard from "./pages/franchise/Dashboard";
@@ -45,6 +46,7 @@ function App() {
         <Route path="promotions" element={<AdminPromotions />} />
         <Route path="alerts" element={<AdminAlerts />} />
         <Route path="franchises" element={<Franchises />} />
+        <Route path="weather" element={<AdminWeather />} />
       </Route>
 
       {/* --- FRANCHISE --- */}
