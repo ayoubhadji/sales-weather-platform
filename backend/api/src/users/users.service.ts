@@ -6,6 +6,7 @@ import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRole } from 'src/common/enums/user-role.enum';
+import { FranchiseStatsDto } from './dto/franchise-stats.dto';
 
 @Injectable()
 export class UsersService {
@@ -36,6 +37,35 @@ export class UsersService {
     },
   });
 }
+
+  async getFranchiseStats(): Promise<FranchiseStatsDto[]> {
+    const franchises = await this.userRepository.find({
+      where: {
+        role: UserRole.FRANCHISE,
+      },
+      relations: {
+        salesTickets: true,
+      },
+    });
+
+    return franchises.map((franchise) => {
+      const tickets = franchise.salesTickets.length;
+
+      const revenue = franchise.salesTickets.reduce(
+        (sum, ticket) => sum + Number(ticket.totalAmount),
+        0,
+      );
+
+      return {
+        id: franchise.id,
+        name: franchise.name,
+        city: franchise.city ?? "",
+        tickets,
+        revenue,
+        isActive: franchise.isActive,
+      };
+    });
+  }
 
   async findOne(id: number): Promise<User> {
     const user = await this.userRepository.findOne({
@@ -73,4 +103,5 @@ export class UsersService {
 
     await this.userRepository.remove(user);
   }
+
 }

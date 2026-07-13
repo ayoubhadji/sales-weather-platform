@@ -5,8 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { SalesItem } from '../../sales-item/entities/sales-item.entity';
+import { User } from 'src/users/entities/user.entity';
 
 @Entity('sales_tickets')
 export class SalesTicket {
@@ -15,6 +18,10 @@ export class SalesTicket {
 
   @OneToMany(() => SalesItem, (item) => item.ticket)
   items!: SalesItem[];
+  
+  @ManyToOne(() => User, { nullable: false })
+  @JoinColumn({ name: 'user_id' })
+  user!: User;
 
   @Column({
     unique: true,

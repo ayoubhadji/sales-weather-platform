@@ -4,14 +4,19 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 
 import { UserRole } from '../../common/enums/user-role.enum';
+import { SalesTicket } from 'src/sales-ticket/entities/sales-ticket.entity';
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
   id!: number;
+
+  @OneToMany(() => SalesTicket, (ticket) => ticket.user)
+  salesTickets!: SalesTicket[];
 
   @Column({
     length: 100,

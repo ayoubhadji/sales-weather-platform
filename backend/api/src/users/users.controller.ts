@@ -21,6 +21,10 @@ export class UsersController {
   findFranchises() {
     return this.usersService.findFranchises();
   }
+  @Get('franchises/stats')
+  getFranchiseStats() {
+    return this.usersService.getFranchiseStats();
+  }
 
   @Get(':id')
   findOne(@Param('id') id: string) {

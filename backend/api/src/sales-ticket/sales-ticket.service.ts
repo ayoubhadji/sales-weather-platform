@@ -4,17 +4,32 @@ import { Repository } from 'typeorm';
 import { SalesTicket } from './entities/sales-ticket.entity';
 import { CreateSalesTicketDto } from './dto/create-sales-ticket.dto';
 import { UpdateSalesTicketDto } from './dto/update-sales-ticket.dto';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class SalesTicketService {
   constructor(
     @InjectRepository(SalesTicket)
     private readonly salesTicketRepository: Repository<SalesTicket>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    
   ) {}
 
-  async create(
-    createSalesTicketDto: CreateSalesTicketDto,
-  ): Promise<SalesTicket> {
+    async create(
+  createSalesTicketDto: CreateSalesTicketDto,
+  userId: number,
+): Promise<SalesTicket> {
+
+    // Find the franchise
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Franchise not found');
+    }
+
     // Find the last created ticket
     const lastTicket = await this.salesTicketRepository.find({
       order: {
@@ -35,6 +50,7 @@ export class SalesTicketService {
       ticketNumber,
       saleDate: createSalesTicketDto.saleDate,
       totalAmount: 0,
+      user, // 👈 Link ticket to the franchise
     });
 
     return await this.salesTicketRepository.save(salesTicket);
@@ -43,6 +59,7 @@ export class SalesTicketService {
   async findAll(): Promise<SalesTicket[]> {
     return this.salesTicketRepository.find({
       relations: {
+        user: true,
         items: {
           product: true,
         },
@@ -54,6 +71,7 @@ export class SalesTicketService {
     const salesTicket = await this.salesTicketRepository.findOne({
       where: { id },
       relations: {
+        user: true,
         items: {
           product: true,
         },

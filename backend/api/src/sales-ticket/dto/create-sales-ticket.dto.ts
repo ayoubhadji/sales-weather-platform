@@ -10,4 +10,5 @@ import {
 export class CreateSalesTicketDto {
   @IsDateString()
   saleDate!: string;
+
 }

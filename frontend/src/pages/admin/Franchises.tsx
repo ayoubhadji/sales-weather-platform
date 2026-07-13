@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import api from "../../services/api";
 import type { User } from "../../types/User";
+import type { FranchiseStats } from "../../types/FranchiseStats";
 
 function Franchises() {
-  const [franchises, setFranchises] = useState<User[]>([]);
+  const [franchises, setFranchises] = useState<FranchiseStats[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -12,7 +13,7 @@ function Franchises() {
 
   async function loadFranchises() {
     try {
-      const response = await api.get("/users/franchises");
+    const response = await api.get("/users/franchises/stats");
       setFranchises(response.data);
     } catch (error) {
       console.error("Error loading franchises:", error);
@@ -47,28 +48,29 @@ function Franchises() {
       <table style={tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>ID</th>
             <th style={thStyle}>Store</th>
-            <th style={thStyle}>Email</th>
             <th style={thStyle}>City</th>
-            <th style={thStyle}>Phone</th>
+            <th style={thStyle}>Tickets</th>
+            <th style={thStyle}>Revenue</th>
             <th style={thStyle}>Status</th>
-            <th style={thStyle}>Action</th>
+            <th style={thStyle}>Actions</th>
           </tr>
         </thead>
 
         <tbody>
           {franchises.map((franchise) => (
             <tr key={franchise.id}>
-              <td style={tdStyle}>{franchise.id}</td>
-
               <td style={tdStyle}>{franchise.name}</td>
-
-              <td style={tdStyle}>{franchise.email}</td>
 
               <td style={tdStyle}>{franchise.city}</td>
 
-              <td style={tdStyle}>{franchise.phone}</td>
+              <td style={tdStyle}>
+                <strong>{franchise.tickets}</strong>
+              </td>
+
+              <td style={tdStyle}>
+                <strong>{franchise.revenue.toFixed(2)} DT</strong>
+              </td>
 
               <td style={tdStyle}>
                 <span
