@@ -48,7 +48,7 @@ const adminNavItems: NavItem[] = [
   { label: "Predictions", icon: CloudSun, path: "/admin/predictions" },
   { label: "Alertes", icon: Bell, path: "/admin/alerts" },
   { label: "Franchises", icon: Store, path: "/admin/franchises" },
-  { label: "Weather", icon: CloudSun, path: "/admin/weather" },
+  { label: "Utilisateurs", icon: Users, path: "/admin/users" },
   { label: "Rapports", icon: FileText, path: "/admin/reports" },
   { label: "Parametres", icon: Settings, path: "/admin/settings" },
 ];
@@ -203,6 +203,9 @@ function Sidebar() {
 const styles: Record<string, CSSProperties> = {
   aside: {
     height: "100vh",
+    position: "sticky",
+    top: 0,
+    alignSelf: "flex-start",
     background: "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)",
     color: "#cbd5e1",
     display: "flex",

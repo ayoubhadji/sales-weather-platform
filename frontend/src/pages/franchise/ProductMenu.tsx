@@ -165,7 +165,7 @@ function ProductMenu() {
                 <div
                   style={{
                     width: "100%",
-                    aspectRatio: "4 / 3",
+                    height: 160,
                     position: "relative",
                     background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
                   }}
@@ -424,7 +424,7 @@ function MenuSkeleton() {
             backgroundColor: "#fff",
           }}
         >
-          <div style={{ width: "100%", aspectRatio: "4 / 3", backgroundColor: "#f1f5f9" }} />
+          <div style={{ width: "100%", height: 160, backgroundColor: "#f1f5f9" }} />
           <div style={{ padding: "14px 16px" }}>
             <div style={{ height: "14px", width: "70%", backgroundColor: "#f1f5f9", borderRadius: "4px", marginBottom: "8px" }} />
             <div style={{ height: "18px", width: "40%", backgroundColor: "#f1f5f9", borderRadius: "4px", marginBottom: "14px" }} />

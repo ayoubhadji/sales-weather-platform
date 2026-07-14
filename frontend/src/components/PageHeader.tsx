@@ -1,15 +1,29 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 type PageHeaderProps = {
   icon: LucideIcon;
   title: string;
   description?: string;
+  action?: ReactNode;
 };
 
-function PageHeader({ icon: Icon, title, description }: PageHeaderProps) {
+function PageHeader({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: PageHeaderProps) {
   return (
-    <div style={{ marginBottom: "20px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+    <div
+      style={{
+        marginBottom: 20,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div
           style={{
             width: 40,
@@ -25,11 +39,24 @@ function PageHeader({ icon: Icon, title, description }: PageHeaderProps) {
         >
           <Icon size={20} />
         </div>
+
         <div>
           <h1 style={{ margin: 0 }}>{title}</h1>
-          {description && <p style={{ margin: "6px 0 0", color: "#64748b" }}>{description}</p>}
+
+          {description && (
+            <p
+              style={{
+                margin: "6px 0 0",
+                color: "#64748b",
+              }}
+            >
+              {description}
+            </p>
+          )}
         </div>
       </div>
+
+      {action}
     </div>
   );
 }

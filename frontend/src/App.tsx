@@ -22,11 +22,13 @@ import NewTicket from "./pages/franchise/NewTicket";
 import TicketsHistory from "./pages/franchise/TicketsHistory";
 import FranchiseSettings from "./pages/franchise/Settings";
 import Franchises from "./pages/admin/Franchises";
+import Landing from "./pages/Landing";
 
 function App() {
   return (
     <Routes>
       {/* Public route */}
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
 
       {/* --- ADMIN --- */}
