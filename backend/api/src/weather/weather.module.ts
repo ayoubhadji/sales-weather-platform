@@ -9,6 +9,6 @@ import { WeatherApiService } from './weather-api.service';
   imports: [TypeOrmModule.forFeature([Weather])],
   controllers: [WeatherController],
   providers: [WeatherService, WeatherApiService],
-  exports: [TypeOrmModule],
+  exports: [TypeOrmModule, WeatherApiService], // Export WeatherApiService to be used in PredictionsModule
 })
 export class WeatherModule {}

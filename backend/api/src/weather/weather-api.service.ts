@@ -106,6 +106,8 @@ export class WeatherApiService {
     return savedWeather;
   }
 
+  // CHANGED: now also requests humidity + wind speed, needed to create a full
+  // Weather row for tomorrow (required by the prediction pipeline).
   async getForecast() {
 
   const latitude = 36.8065;
@@ -115,7 +117,7 @@ export class WeatherApiService {
     `https://api.open-meteo.com/v1/forecast` +
     `?latitude=${latitude}` +
     `&longitude=${longitude}` +
-    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,relative_humidity_2m_mean,wind_speed_10m_max` +
     `&forecast_days=7`;
 
   const response = await axios.get(url);
@@ -127,10 +129,34 @@ export class WeatherApiService {
     maxTemperature: daily.temperature_2m_max[index],
     minTemperature: daily.temperature_2m_min[index],
     rainfall: daily.precipitation_sum[index],
+    humidity: daily.relative_humidity_2m_mean[index],
+    windSpeed: daily.wind_speed_10m_max[index],
     weatherCondition: this.mapWeatherCondition(
       daily.weather_code[index],
     ),
   }));
 }
 
+  // NEW: used by the prediction pipeline to get/create tomorrow's Weather row
+  // so SalesPrediction rows have a real weatherId to point to.
+  async getOrCreateWeatherForDate(dateStr: string): Promise<Weather> {
+    const existing = await this.weatherRepository.findOne({
+      where: { weatherDate: new Date(dateStr) },
+    });
+    if (existing) return existing;
+
+    const forecast = await this.getForecast();
+    const entry = forecast.find((f: { date: string }) => f.date === dateStr) ?? forecast[1];
+
+    const weather = this.weatherRepository.create({
+      weatherDate: new Date(dateStr),
+      temperature: entry.maxTemperature, // daily max used as representative temperature
+      humidity: entry.humidity,
+      rainfall: entry.rainfall,
+      windSpeed: entry.windSpeed,
+      weatherCondition: entry.weatherCondition,
+    });
+
+    return this.weatherRepository.save(weather);
+  }
 }

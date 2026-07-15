@@ -14,6 +14,8 @@ import { AlertsModule } from './alerts/alerts.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ReportsModule } from './reports/reports.module';
+import { PredictionsController } from './predictions/predictions.controller';
+import { PredictionsModule } from './predictions/predictions.module';
 
 @Module({
   imports: [
@@ -52,6 +54,8 @@ import { ReportsModule } from './reports/reports.module';
     AuthModule,
 
     ReportsModule,
+
+    PredictionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
