@@ -24,6 +24,7 @@ import FranchiseSettings from "./pages/franchise/Settings";
 import Franchises from "./pages/admin/Franchises";
 import Landing from "./pages/Landing";
 import Reports from "./pages/admin/Reports";
+import AdminSettings from "./pages/admin/Settings";
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
         <Route path="franchises" element={<Franchises />} />
         <Route path="weather" element={<AdminWeather />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="settings" element={<AdminSettings />} />
       </Route>
 
       {/* --- FRANCHISE --- */}
