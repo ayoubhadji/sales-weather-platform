@@ -284,9 +284,6 @@ function Reports() {
               <div style={{ ...card, height: 320 }}>
                 <h3 style={{ marginTop: 0 }}>Sales by Category</h3>
 
-                <div style={{ ...card, height: 320 }}>
-        <h3 style={{ marginTop: 0 }}>Sales by Category</h3>
-
         <ResponsiveContainer width="100%" height={250}>
           <PieChart>
             <Pie
@@ -309,7 +306,7 @@ function Reports() {
             <Legend />
           </PieChart>
         </ResponsiveContainer>
-      </div>
+      
         </div>
       </div>
 

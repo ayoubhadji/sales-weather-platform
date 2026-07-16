@@ -2,10 +2,16 @@ import { useEffect, useState } from "react";
 import api from "../../services/api";
 import type { User } from "../../types/User";
 import type { FranchiseStats } from "../../types/FranchiseStats";
+import ModalEditFranchise from "../../components/ModalEditFranchise";
+import ModalAddFranchise from "../../components/ModalAddFranchise";
 
 function Franchises() {
   const [franchises, setFranchises] = useState<FranchiseStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFranchise, setSelectedFranchise] =
+  useState<FranchiseStats | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  
 
   useEffect(() => {
     void loadFranchises();
@@ -39,11 +45,29 @@ function Franchises() {
 
   return (
     <div>
-      <h1>Franchises</h1>
+      <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 24,
+      }}
+    >
+      <div>
+        <h1 style={{ margin: 0 }}>Franchises</h1>
 
-      <p style={{ color: "#64748b", marginTop: 8 }}>
-        View and manage all franchise stores registered in the platform.
-      </p>
+        <p style={{ color: "#64748b", marginTop: 8 }}>
+          View and manage all franchise stores registered in the platform.
+        </p>
+      </div>
+
+      <button
+        style={addButtonStyle}
+        onClick={() => setShowAddModal(true)}
+      >
+        + Add Franchise
+      </button>
+    </div>
 
       <table style={tableStyle}>
         <thead>
@@ -96,15 +120,35 @@ function Franchises() {
                     {franchise.isActive ? "Deactivate" : "Activate"}
                 </button>
 
-                <button style={actionButtonStyle}>
-                    Edit
+                <button
+                  style={actionButtonStyle}
+                  onClick={() => setSelectedFranchise(franchise)}
+                >
+                  Edit
                 </button>
                 </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+            {selectedFranchise && (
+        <ModalEditFranchise
+          franchise={selectedFranchise}
+          onClose={() => setSelectedFranchise(null)}
+          onSaved={loadFranchises}
+        />
+      )}
+
+      {showAddModal && (
+      <ModalAddFranchise
+        onClose={() => setShowAddModal(false)}
+        onSaved={loadFranchises}
+      />
+    )}
     </div>
+
+
   );
 }
 const activateButtonStyle: React.CSSProperties = {
@@ -156,6 +200,18 @@ const actionButtonStyle: React.CSSProperties = {
   background: "#fff",
   cursor: "pointer",
   fontWeight: 600,
+};
+
+const addButtonStyle: React.CSSProperties = {
+  padding: "12px 20px",
+  border: "none",
+  borderRadius: 10,
+  background: "#0f172a",
+  color: "#fff",
+  fontWeight: 600,
+  fontSize: 14,
+  cursor: "pointer",
+  transition: "0.2s",
 };
 
 const deleteButtonStyle: React.CSSProperties = {
