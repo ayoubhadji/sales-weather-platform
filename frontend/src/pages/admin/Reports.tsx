@@ -13,6 +13,10 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Pie,
+  PieChart,
+  Cell,
+  Legend,
 } from "recharts";
 
 type ReportSummary = {
@@ -21,6 +25,15 @@ type ReportSummary = {
   averageTicket: number;
   topProduct: string;
 };
+
+const PIE_COLORS = [
+  "#2563eb",
+  "#16a34a",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+];
 
 function Reports() {
   const [summary, setSummary] = useState<ReportSummary>({
@@ -36,9 +49,12 @@ function Reports() {
 
   const [revenueTrend, setRevenueTrend] = useState<{ date: string; revenue: number }[]>([]);
 
+  const [categorySales, setCategorySales] = useState<{ category: string; sales: number }[]>([]);
+
   useEffect(() => {
   loadSummary();
   loadRevenueTrend();
+  loadCategorySales();
   loadFranchises();
 }, []);;
 
@@ -80,6 +96,22 @@ function Reports() {
         });
 
         setRevenueTrend(response.data);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    async function loadCategorySales() {
+      try {
+        const response = await api.get("/reports/category-sales", {
+          params: {
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+            franchiseId: selectedFranchise || undefined,
+          },
+        });
+
+        setCategorySales(response.data);
       } catch (error) {
         console.error(error);
       }
@@ -164,6 +196,7 @@ function Reports() {
             onClick={() => {
               loadSummary();
               loadRevenueTrend();
+              loadCategorySales();
             }}
           >
             Generate Report
@@ -245,13 +278,38 @@ function Reports() {
                 dot={{ r: 4 }}
               />
             </LineChart>
-          </ResponsiveContainer>
-        </div>
+                </ResponsiveContainer>
+              </div>
 
-        <div style={{ ...card, height: 320 }}>
-          <h3 style={{ marginTop: 0 }}>Sales by Category</h3>
+              <div style={{ ...card, height: 320 }}>
+                <h3 style={{ marginTop: 0 }}>Sales by Category</h3>
 
-          <Placeholder />
+                <div style={{ ...card, height: 320 }}>
+        <h3 style={{ marginTop: 0 }}>Sales by Category</h3>
+
+        <ResponsiveContainer width="100%" height={250}>
+          <PieChart>
+            <Pie
+              data={categorySales}
+              dataKey="sales"
+              nameKey="category"
+              outerRadius={90}
+              label
+            >
+              {categorySales.map((_, index) => (
+                <Cell
+                  key={index}
+                  fill={PIE_COLORS[index % PIE_COLORS.length]}
+                />
+              ))}
+            </Pie>
+
+            <Tooltip />
+
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
         </div>
       </div>
 
@@ -307,23 +365,23 @@ function StatCard({
   );
 }
 
-function Placeholder() {
-  return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        color: colors.textMuted,
-        border: `2px dashed ${colors.border}`,
-        borderRadius: 12,
-      }}
-    >
-      Chart coming soon
-    </div>
-  );
-}
+// function Placeholder() {
+//   return (
+//     <div
+//       style={{
+//         height: "100%",
+//         display: "flex",
+//         justifyContent: "center",
+//         alignItems: "center",
+//         color: colors.textMuted,
+//         border: `2px dashed ${colors.border}`,
+//         borderRadius: 12,
+//       }}
+//     >
+//       Chart coming soon
+//     </div>
+//   );
+// }
 
 const labelStyle: React.CSSProperties = {
   display: "block",

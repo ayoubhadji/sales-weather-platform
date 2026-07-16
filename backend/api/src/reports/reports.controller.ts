@@ -30,4 +30,18 @@ export class ReportsController {
         franchiseId,
     );
     }
+
+
+    @Get('category-sales')
+      getCategorySales(
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+        @Query('franchiseId') franchiseId?: number,
+      ) {
+        return this.reportsService.getCategorySales(
+          startDate,
+          endDate,
+          franchiseId,
+        );
+      }
 }

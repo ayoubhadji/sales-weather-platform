@@ -163,5 +163,51 @@ export class ReportsService {
     date: item.date,
     revenue: Number(item.revenue),
   }));
-}
+  }
+
+
+  async getCategorySales(
+    startDate?: string,
+    endDate?: string,
+    franchiseId?: number,
+  ) {
+    const query = this.salesItemRepository
+      .createQueryBuilder('item')
+      .leftJoin('item.ticket', 'ticket')
+      .leftJoin('item.product', 'product')
+      .leftJoin('ticket.user', 'user');
+
+    if (startDate) {
+      query.andWhere(
+        'ticket.saleDate >= :startDate',
+        { startDate },
+      );
+    }
+
+    if (endDate) {
+      query.andWhere(
+        'ticket.saleDate <= :endDate',
+        { endDate },
+      );
+    }
+
+    if (franchiseId) {
+      query.andWhere(
+        'user.id = :franchiseId',
+        { franchiseId },
+      );
+    }
+
+    const result = await query
+      .select('product.category', 'category')
+      .addSelect('SUM(item.quantity)', 'sales')
+      .groupBy('product.category')
+      .orderBy('sales', 'DESC')
+      .getRawMany();
+
+    return result.map((row) => ({
+      category: row.category,
+      sales: Number(row.sales),
+    }));
+  }
 }
