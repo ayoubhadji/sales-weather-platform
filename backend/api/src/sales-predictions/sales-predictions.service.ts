@@ -22,12 +22,16 @@ export class SalesPredictionsService {
   }
 
   async findAll(): Promise<SalesPrediction[]> {
-    return this.salesPredictionRepository.find();
+    return this.salesPredictionRepository.find({
+      relations: { product: true, weather: true },
+      order: { predictionDate: 'DESC' },
+    });
   }
 
   async findOne(id: number): Promise<SalesPrediction> {
     const salesPrediction = await this.salesPredictionRepository.findOne({
       where: { id },
+      relations: { product: true, weather: true },
     });
 
     if (!salesPrediction) {

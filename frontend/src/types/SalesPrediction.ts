@@ -1,3 +1,6 @@
+import type { Product } from "./Product";
+import type { Weather } from "./Weather";
+
 export interface SalesPrediction {
   id: number;
   predictionDate: string;
@@ -5,13 +8,6 @@ export interface SalesPrediction {
   predictedRevenue: number;
   confidence: number;
 
-  product: {
-    id: number;
-    name: string;
-  };
-
-  weather: {
-    id: number;
-    weatherDate: string;
-  };
+  product: Product;
+  weather: Weather;
 }
