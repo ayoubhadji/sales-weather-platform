@@ -1,9 +1,14 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ReportsService } from './reports.service';
+import { GroqAdvisorService } from './Groq-advisor.service';
+import { GetAiAdviceDto } from './dto/get-ai-advice.dto';
 
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(
+    private readonly reportsService: ReportsService,
+    private readonly groqAdvisorService: GroqAdvisorService,
+  ) {}
 
   @Get('summary')
   getSummary(
@@ -44,4 +49,9 @@ export class ReportsController {
           franchiseId,
         );
       }
+
+  @Post('ai-advice')
+  getAiAdvice(@Body() body: GetAiAdviceDto) {
+    return this.groqAdvisorService.getBusinessAdvice(body);
+  }
 }
