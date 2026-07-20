@@ -16,12 +16,14 @@ import { AuthModule } from './auth/auth.module';
 import { ReportsModule } from './reports/reports.module';
 import { PredictionsController } from './predictions/predictions.controller';
 import { PredictionsModule } from './predictions/predictions.module';
+import { ScheduleModule } from '@nestjs/schedule/dist/schedule.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
 
     TypeOrmModule.forRoot({
       type: 'postgres',

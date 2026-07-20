@@ -1,12 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import axios from 'axios';
 import { Product } from '../products/entities/product.entity';
 import { SalesItem } from '../sales-item/entities/sales-item.entity';
 import { SalesPrediction } from '../sales-predictions/entities/sales-prediction.entity';
 import { Weather } from '../weather/entities/weather.entity';
 import { WeatherApiService } from '../weather/weather-api.service';
 import { WeatherCondition } from '../common/enums/weather-condition.enum';
+
+// Python ML microservice — falls back to the heuristic below if unreachable,
+// untrained, or too unsure of itself.
+const ML_SERVICE_URL = process.env.PYTHON_ML_URL ?? 'http://localhost:8000';
+const ML_REQUEST_TIMEOUT_MS = 3000;
+const MIN_ML_CONFIDENCE_TO_TRUST = 40;
 
 // Base multiplier per weather condition (same spirit as Model 1's baseline).
 const CONDITION_MULTIPLIER: Record<WeatherCondition, number> = {
@@ -57,10 +64,13 @@ export interface ProductPredictionResult {
   predictedRevenue: number;
   confidence: number;
   insufficientData: boolean;
+  method: 'ml' | 'heuristic';
 }
 
 @Injectable()
 export class DemandPredictionService {
+  private readonly logger = new Logger(DemandPredictionService.name);
+
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
@@ -81,24 +91,27 @@ export class DemandPredictionService {
    * Returns tomorrow's per-product predictions, generating and persisting
    * them first if they don't already exist for that date.
    */
-  async getOrGenerateTomorrow(): Promise<ProductPredictionResult[]> {
+  async getOrGenerateTomorrow(forceRegenerate = false): Promise<ProductPredictionResult[]> {
     const tomorrow = this.getTomorrowDateString();
 
-    const existing = await this.salesPredictionRepository.find({
-      where: { predictionDate: new Date(tomorrow) },
-      relations: { product: true },
-    });
+    if (!forceRegenerate) {
+      const existing = await this.salesPredictionRepository.find({
+        where: { predictionDate: new Date(tomorrow) },
+        relations: { product: true },
+      });
 
-    if (existing.length > 0) {
-      return existing.map((p) => ({
-        productId: p.product.id,
-        productName: p.product.name,
-        category: p.product.category,
-        predictedQuantity: p.predictedQuantity,
-        predictedRevenue: Number(p.predictedRevenue),
-        confidence: Number(p.confidence),
-        insufficientData: Number(p.confidence) < 50,
-      }));
+      if (existing.length > 0) {
+        return existing.map((p) => ({
+          productId: p.product.id,
+          productName: p.product.name,
+          category: p.product.category,
+          predictedQuantity: p.predictedQuantity,
+          predictedRevenue: Number(p.predictedRevenue),
+          confidence: Number(p.confidence),
+          insufficientData: Number(p.confidence) < 50,
+          method: p.method,
+        }));
+      }
     }
 
     return this.generateTomorrowPredictions(tomorrow);
@@ -113,21 +126,40 @@ export class DemandPredictionService {
     const results: ProductPredictionResult[] = [];
 
     for (const product of products) {
-      const { avgQuantityPerDay, daysUsed } = await this.computeProductBaseline(product.id);
-      const usedFallback = daysUsed === 0;
-      const baseline = usedFallback
-        ? (DEFAULT_QUANTITY_BY_CATEGORY[product.category] ?? DEFAULT_QUANTITY_FALLBACK)
-        : avgQuantityPerDay;
+      const mlResult = await this.tryMlPrediction(product, weather);
 
-      const multiplier = this.computeMultiplier(
-        product.category,
-        weather.weatherCondition,
-        Number(weather.temperature),
-      );
+      let predictedQuantity: number;
+      let confidence: number;
+      let usedFallback: boolean;
+      let method: 'ml' | 'heuristic';
 
-      const predictedQuantity = Math.max(0, Math.round(baseline * multiplier));
+      if (mlResult) {
+        predictedQuantity = mlResult.quantity;
+        confidence = mlResult.confidence;
+        usedFallback = false;
+        method = 'ml';
+        this.logger.log(
+          `Used ML prediction for "${product.name}": qty=${predictedQuantity}, confidence=${confidence}`,
+        );
+      } else {
+        const { avgQuantityPerDay, daysUsed } = await this.computeProductBaseline(product.id);
+        usedFallback = daysUsed === 0;
+        method = 'heuristic';
+        const baseline = usedFallback
+          ? (DEFAULT_QUANTITY_BY_CATEGORY[product.category] ?? DEFAULT_QUANTITY_FALLBACK)
+          : avgQuantityPerDay;
+
+        const multiplier = this.computeMultiplier(
+          product.category,
+          weather.weatherCondition,
+          Number(weather.temperature),
+        );
+
+        predictedQuantity = Math.max(0, Math.round(baseline * multiplier));
+        confidence = this.computeConfidence(daysUsed);
+      }
+
       const predictedRevenue = Math.round(predictedQuantity * Number(product.price) * 100) / 100;
-      const confidence = this.computeConfidence(daysUsed);
 
       const saved = await this.upsertPrediction({
         product,
@@ -136,6 +168,7 @@ export class DemandPredictionService {
         predictedQuantity,
         predictedRevenue,
         confidence,
+        method,
       });
 
       results.push({
@@ -146,6 +179,7 @@ export class DemandPredictionService {
         predictedRevenue: Number(saved.predictedRevenue),
         confidence: Number(saved.confidence),
         insufficientData: usedFallback,
+        method: saved.method,
       });
     }
 
@@ -159,6 +193,7 @@ export class DemandPredictionService {
     predictedQuantity: number;
     predictedRevenue: number;
     confidence: number;
+    method: 'ml' | 'heuristic';
   }): Promise<SalesPrediction> {
     const existing = await this.salesPredictionRepository.findOne({
       where: {
@@ -173,6 +208,7 @@ export class DemandPredictionService {
         predictedQuantity: data.predictedQuantity,
         predictedRevenue: data.predictedRevenue,
         confidence: data.confidence,
+        method: data.method,
       });
       return this.salesPredictionRepository.save(existing);
     }
@@ -184,8 +220,60 @@ export class DemandPredictionService {
       predictedQuantity: data.predictedQuantity,
       predictedRevenue: data.predictedRevenue,
       confidence: data.confidence,
+      method: data.method,
     });
     return this.salesPredictionRepository.save(created);
+  }
+
+  /**
+   * Tries the Python ML service for a per-product demand prediction.
+   * Returns null (triggering the heuristic fallback) if:
+   * - the service is unreachable or times out
+   * - it hasn't been trained yet ("not_trained")
+   * - it responds but with a confidence below our trust threshold
+   */
+  private async tryMlPrediction(
+    product: Product,
+    weather: Weather,
+  ): Promise<{ quantity: number; confidence: number } | null> {
+    try {
+      const response = await axios.post(
+        `${ML_SERVICE_URL}/predict/demand`,
+        {
+          temperature: Number(weather.temperature),
+          humidity: Number(weather.humidity),
+          rainfall: Number(weather.rainfall),
+          windSpeed: Number(weather.windSpeed),
+          weatherCondition: weather.weatherCondition,
+          productId: product.id,
+          category: product.category,
+          productName: product.name,
+        },
+        { timeout: ML_REQUEST_TIMEOUT_MS },
+      );
+
+      const data = response.data;
+
+      if (data.status !== 'ok') {
+        this.logger.warn(`ML service not ready for "${product.name}" (status: ${data.status})`);
+        return null;
+      }
+
+      if (data.confidence < MIN_ML_CONFIDENCE_TO_TRUST) {
+        this.logger.warn(
+          `ML confidence too low for "${product.name}" (${data.confidence}%) — using heuristic instead`,
+        );
+        return null;
+      }
+
+      return { quantity: data.predictedQuantity, confidence: data.confidence };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `ML service unreachable, falling back to heuristic for "${product.name}": ${message}`,
+      );
+      return null;
+    }
   }
 
   private async computeProductBaseline(

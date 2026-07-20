@@ -46,4 +46,14 @@ export class SalesPrediction {
     scale: 2,
   })
   predictedRevenue!: number;
+
+  // Tracks which system produced this prediction — the trained Python
+  // model ("ml") or the rule-based fallback ("heuristic"). Defaults to
+  // "heuristic" for older rows created before this column existed.
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'heuristic',
+  })
+  method!: 'ml' | 'heuristic';
 }

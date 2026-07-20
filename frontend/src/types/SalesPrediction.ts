@@ -7,6 +7,7 @@ export interface SalesPrediction {
   predictedQuantity: number;
   predictedRevenue: number;
   confidence: number;
+  method: "ml" | "heuristic";
 
   product: Product;
   weather: Weather;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../../services/api";
 import type { SalesPrediction } from "../../types/SalesPrediction";
 import type { Product } from "../../types/Product";
@@ -16,6 +16,9 @@ import {
   Droplets,
   Wind,
   ImageOff,
+  ChevronDown,
+  ChevronRight,
+  RefreshCw,
 } from "lucide-react";
 
 const CONDITION_STYLE: Record<
@@ -42,9 +45,12 @@ function confidenceBadgeStyle(confidence: number) {
 function Predictions() {
   const [predictions, setPredictions] = useState<SalesPrediction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedWeather, setSelectedWeather] = useState<Weather | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateMessage, setGenerateMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void loadPredictions();
@@ -81,6 +87,55 @@ function Predictions() {
     }
   }
 
+  async function handleGenerateTomorrow() {
+    setGenerating(true);
+    setGenerateMessage(null);
+
+    const beforeIds = new Set(predictions.map((p) => p.id));
+
+    try {
+      // This endpoint already checks if tomorrow's predictions exist first,
+      // and only computes new ones if they don't — safe to call anytime.
+      await api.get("/predictions/tomorrow-demand");
+      await loadPredictions();
+
+      setGenerateMessage(
+        beforeIds.size === 0 ? "Predictions generated." : "Tomorrow's predictions are ready."
+      );
+    } catch (error) {
+      console.error("Error generating tomorrow's predictions:", error);
+      setGenerateMessage("Could not generate predictions — check the server.");
+    } finally {
+      setGenerating(false);
+      setTimeout(() => setGenerateMessage(null), 4000);
+    }
+  }
+
+  const groupedByDate = useMemo(() => {
+    const groups = new Map<string, SalesPrediction[]>();
+    for (const prediction of predictions) {
+      const list = groups.get(prediction.predictionDate) ?? [];
+      list.push(prediction);
+      groups.set(prediction.predictionDate, list);
+    }
+    return Array.from(groups.entries())
+      .map(([date, items]) => {
+        const totalRevenue = items.reduce((sum, p) => sum + Number(p.predictedRevenue), 0);
+        const totalQuantity = items.reduce((sum, p) => sum + p.predictedQuantity, 0);
+        const avgConfidence = items.reduce((sum, p) => sum + Number(p.confidence), 0) / items.length;
+        return {
+          date,
+          items,
+          weather: items[0]?.weather,
+          totalRevenue: Math.round(totalRevenue * 100) / 100,
+          totalQuantity,
+          avgConfidence: Math.round(avgConfidence),
+          productCount: items.length,
+        };
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [predictions]);
+
   return (
     <div>
       <style>{modalKeyframes}</style>
@@ -89,88 +144,139 @@ function Predictions() {
         icon={CloudSun}
         title="Sales Predictions"
         description="Review forecasted quantity, revenue and confidence values."
+        action={
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {generateMessage && (
+              <span style={{ fontSize: 13, color: colors.textMuted }}>{generateMessage}</span>
+            )}
+            <button
+              onClick={handleGenerateTomorrow}
+              disabled={generating}
+              style={generateButtonStyle}
+            >
+              <RefreshCw size={14} className={generating ? "spin" : undefined} />
+              {generating ? "Checking..." : "Check tomorrow's predictions"}
+            </button>
+          </div>
+        }
       />
 
-      <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {loading ? (
-          <p style={{ padding: 20, color: colors.textMuted, margin: 0 }}>
-            Loading predictions...
-          </p>
-        ) : predictions.length === 0 ? (
-          <p style={{ padding: 20, color: colors.textMuted, margin: 0 }}>
-            No predictions found.
-          </p>
+          <div style={card}>
+            <p style={{ color: colors.textMuted, margin: 0 }}>Loading predictions...</p>
+          </div>
+        ) : groupedByDate.length === 0 ? (
+          <div style={card}>
+            <p style={{ color: colors.textMuted, margin: 0 }}>No predictions found.</p>
+          </div>
         ) : (
-          <table style={table}>
-            <thead>
-              <tr>
-                <th style={th}>ID</th>
-                <th style={th}>Product</th>
-                <th style={th}>Weather</th>
-                <th style={th}>Date</th>
-                <th style={th}>Predicted Quantity</th>
-                <th style={th}>Predicted Revenue</th>
-                <th style={th}>Confidence</th>
-              </tr>
-            </thead>
-            <tbody>
-              {predictions.map((prediction, i) => {
-                const conditionStyle = getConditionStyle(prediction.weather?.weatherCondition);
-                const ConditionIcon = conditionStyle.icon;
+          groupedByDate.map((group) => {
+            const isOpen = expandedDate === group.date;
+            const conditionStyle = getConditionStyle(group.weather?.weatherCondition);
+            const ConditionIcon = conditionStyle.icon;
 
-                return (
-                  <tr
-                    key={prediction.id}
-                    style={{ backgroundColor: i % 2 === 1 ? "#f8fafc" : "#fff" }}
-                  >
-                    <td style={td}>{prediction.id}</td>
-                    <td style={td}>
-                      {prediction.product ? (
-                        <button
-                          onClick={() => setSelectedProduct(prediction.product)}
-                          className="link-btn"
-                        >
-                          {prediction.product.name}
-                        </button>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td style={td}>
-                      {prediction.weather ? (
-                        <button
-                          onClick={() => setSelectedWeather(prediction.weather)}
-                          style={{
-                            ...badge(conditionStyle.bg, conditionStyle.fg),
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <ConditionIcon size={12} />
-                          {prediction.weather.weatherCondition}
-                        </button>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td style={td}>{prediction.predictionDate}</td>
-                    <td style={td}>{prediction.predictedQuantity}</td>
-                    <td style={{ ...td, fontWeight: 700 }}>
-                      {prediction.predictedRevenue} DT
-                    </td>
-                    <td style={td}>
-                      <span style={confidenceBadgeStyle(prediction.confidence)}>
-                        {prediction.confidence}%
+            return (
+              <div key={group.date} style={{ ...card, padding: 0, overflow: "hidden" }}>
+                {/* Date summary row — click to expand */}
+                <button
+                  onClick={() => setExpandedDate(isOpen ? null : group.date)}
+                  style={dateSummaryButtonStyle}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <span style={{ fontWeight: 700, color: colors.dark, fontSize: 15 }}>
+                      {group.date}
+                    </span>
+                    {group.weather && (
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedWeather(group.weather);
+                        }}
+                        style={{
+                          ...badge(conditionStyle.bg, conditionStyle.fg),
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <ConditionIcon size={12} />
+                        {group.weather.weatherCondition}
                       </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+                    <SummaryStat label="Products" value={group.productCount} />
+                    <SummaryStat label="Qty" value={group.totalQuantity} />
+                    <SummaryStat label="Revenue" value={`${group.totalRevenue} DT`} />
+                    <span style={confidenceBadgeStyle(group.avgConfidence)}>
+                      {group.avgConfidence}%
+                    </span>
+                  </div>
+                </button>
+
+                {/* Expanded per-product detail for this date */}
+                {isOpen && (
+                  <div style={{ borderTop: `1px solid ${colors.border}` }}>
+                    <table style={table}>
+                      <thead>
+                        <tr>
+                          <th style={th}>ID</th>
+                          <th style={th}>Product</th>
+                          <th style={th}>Predicted Quantity</th>
+                          <th style={th}>Predicted Revenue</th>
+                          <th style={th}>Confidence</th>
+                          <th style={th}>Method</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.items.map((prediction, i) => (
+                          <tr
+                            key={prediction.id}
+                            style={{ backgroundColor: i % 2 === 1 ? "#f8fafc" : "#fff" }}
+                          >
+                            <td style={td}>{prediction.id}</td>
+                            <td style={td}>
+                              {prediction.product ? (
+                                <button
+                                  onClick={() => setSelectedProduct(prediction.product)}
+                                  className="link-btn"
+                                >
+                                  {prediction.product.name}
+                                </button>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td style={td}>{prediction.predictedQuantity}</td>
+                            <td style={{ ...td, fontWeight: 700 }}>
+                              {prediction.predictedRevenue} DT
+                            </td>
+                            <td style={td}>
+                              <span style={confidenceBadgeStyle(prediction.confidence)}>
+                                {prediction.confidence}%
+                              </span>
+                            </td>
+                            <td style={td}>
+                              {prediction.method === "ml" ? (
+                                <span style={badge("#ede9fe", "#6d28d9")}>🐍 ML</span>
+                              ) : (
+                                <span style={badge("#f1f5f9", colors.textMuted)}>📐 Heuristic</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -334,6 +440,17 @@ function Predictions() {
   );
 }
 
+function SummaryStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div style={{ textAlign: "right" }}>
+      <div style={{ fontSize: 10, color: colors.textMuted, textTransform: "uppercase" }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: colors.dark }}>{value}</div>
+    </div>
+  );
+}
+
 const overlayStyle: React.CSSProperties = {
   position: "fixed",
   inset: 0,
@@ -383,6 +500,35 @@ const weatherMetricStyle: React.CSSProperties = {
   backgroundColor: "#f8fafc",
 };
 
+const dateSummaryButtonStyle: React.CSSProperties = {
+  width: "100%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 16,
+  padding: "16px 20px",
+  background: "#fff",
+  border: "none",
+  cursor: "pointer",
+  textAlign: "left",
+  flexWrap: "wrap",
+};
+
+const generateButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "9px 16px",
+  borderRadius: 10,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  color: colors.dark,
+  fontWeight: 600,
+  fontSize: 13,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
+
 const modalKeyframes = `
 @keyframes overlayFadeIn {
   from { opacity: 0; }
@@ -406,6 +552,13 @@ const modalKeyframes = `
 .link-btn:hover {
   color: ${colors.accentDark};
   text-decoration-color: ${colors.accentDark};
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 `;
 

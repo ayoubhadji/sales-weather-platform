@@ -11,6 +11,7 @@ import { TrainingDataController } from './training-data.controller';
 import { RevenuePredictionService } from './revenue-prediction.service';
 import { DemandPredictionService } from './demand-prediction.service';
 import { TrainingDataService } from './training-data.service';
+import { MlTrainingSchedulerService } from './Ml-training-scheduler.service';
 
 @Module({
   imports: [
@@ -18,6 +19,11 @@ import { TrainingDataService } from './training-data.service';
     WeatherModule, // must export WeatherApiService
   ],
   controllers: [PredictionsController, TrainingDataController],
-  providers: [RevenuePredictionService, DemandPredictionService, TrainingDataService],
+  providers: [
+    RevenuePredictionService,
+    DemandPredictionService,
+    TrainingDataService,
+    MlTrainingSchedulerService,
+  ],
 })
 export class PredictionsModule {}
