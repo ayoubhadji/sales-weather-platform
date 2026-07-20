@@ -77,25 +77,26 @@ function Dashboard() {
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0 }}>Admin Dashboard</h1>
-        <p style={{ color: "#64748b", marginTop: 8 }}>
+    <div style={pageStyle}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={eyebrowStyle}>Operations</div>
+        <h1 style={titleStyle}>Admin Dashboard</h1>
+        <p style={subtitleStyle}>
           Overview of sales, products, promotions, alerts and prediction data.
         </p>
       </div>
 
       <div style={gridStyle}>
-        <StatCard label="Products" value={stats.products} />
-        <StatCard label="Sales Tickets" value={stats.sales} />
-        <StatCard label="Promotions" value={stats.promotions} />
-        <StatCard label="Alerts" value={stats.alerts} />
-        <StatCard label="Predictions" value={stats.predictions} />
-        <StatCard label="Weather Records" value={stats.weather} />
+        <StatCard label="Products" value={stats.products} icon="📦" accent="#0F6659" />
+        <StatCard label="Sales Tickets" value={stats.sales} icon="🧾" accent="#0F6659" />
+        <StatCard label="Promotions" value={stats.promotions} icon="🏷️" accent="#E8A33D" />
+        <StatCard label="Alerts" value={stats.alerts} icon="⚠️" accent="#B54708" />
+        <StatCard label="Predictions" value={stats.predictions} icon="📈" accent="#0F6659" />
+        <StatCard label="Weather Records" value={stats.weather} icon="⛅" accent="#3B6FA0" />
       </div>
 
       <div style={panelsStyle}>
-        <Panel title="Recent Sales">
+        <Panel title="Recent Sales" accent="#0F6659">
           {recentSales.length === 0 ? (
             <EmptyState text="No sales tickets found yet." />
           ) : (
@@ -105,7 +106,7 @@ function Dashboard() {
           )}
         </Panel>
 
-        <Panel title="Recent Promotions">
+        <Panel title="Recent Promotions" accent="#E8A33D">
           {recentPromotions.length === 0 ? (
             <EmptyState text="No promotions found yet." />
           ) : (
@@ -120,7 +121,7 @@ function Dashboard() {
           )}
         </Panel>
 
-        <Panel title="Recent Alerts">
+        <Panel title="Recent Alerts" accent="#B54708">
           {recentAlerts.length === 0 ? (
             <EmptyState text="No alerts found yet." />
           ) : (
@@ -139,47 +140,88 @@ function Dashboard() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({
+  label,
+  value,
+  icon,
+  accent,
+}: {
+  label: string;
+  value: number;
+  icon: string;
+  accent: string;
+}) {
   return (
     <div style={statCardStyle}>
-      <div style={{ color: "#64748b", fontSize: 14 }}>{label}</div>
-      <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8 }}>{value}</div>
+      <div style={{ ...iconBadgeStyle, background: `${accent}17`, color: accent }}>{icon}</div>
+      <div style={{ color: "#6B7280", fontSize: 13, fontWeight: 600, marginTop: 14 }}>{label}</div>
+      <div style={{ fontSize: 30, fontWeight: 800, marginTop: 4, color: "#12181F" }}>{value}</div>
     </div>
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({
+  title,
+  accent,
+  children,
+}: {
+  title: string;
+  accent: string;
+  children: React.ReactNode;
+}) {
   return (
     <section style={panelStyle}>
-      <h2 style={{ marginTop: 0 }}>{title}</h2>
-      <div style={{ display: "grid", gap: 12 }}>{children}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <span style={{ ...dotStyle, background: accent }} />
+        <h2 style={panelTitleStyle}>{title}</h2>
+      </div>
+      <div style={{ display: "grid", gap: 4 }}>{children}</div>
     </section>
   );
 }
 
 function Row({ left, right, caption }: { left: string; right: string; caption?: string }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 16,
-        padding: "12px 0",
-        borderBottom: "1px solid #e2e8f0",
-      }}
-    >
+    <div style={rowStyle}>
       <div>
-        <div style={{ fontWeight: 600 }}>{left}</div>
-        {caption && <div style={{ fontSize: 13, color: "#64748b" }}>{caption}</div>}
+        <div style={{ fontWeight: 600, color: "#12181F" }}>{left}</div>
+        {caption && <div style={{ fontSize: 13, color: "#6B7280", marginTop: 2 }}>{caption}</div>}
       </div>
-      <div style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{right}</div>
+      <div style={{ fontWeight: 700, whiteSpace: "nowrap", color: "#12181F" }}>{right}</div>
     </div>
   );
 }
 
 function EmptyState({ text }: { text: string }) {
-  return <div style={{ color: "#64748b", padding: "8px 0" }}>{text}</div>;
+  return <div style={{ color: "#94A3B8", padding: "16px 0", textAlign: "center" }}>{text}</div>;
 }
+
+const pageStyle: React.CSSProperties = {
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+};
+
+const eyebrowStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "0.1em",
+  color: "#0F6659",
+  textTransform: "uppercase",
+};
+
+const titleStyle: React.CSSProperties = {
+  margin: "4px 0 0",
+  fontSize: 30,
+  fontWeight: 800,
+  letterSpacing: "-0.01em",
+  color: "#12181F",
+};
+
+const subtitleStyle: React.CSSProperties = {
+  color: "#6B7280",
+  marginTop: 8,
+  fontSize: 14,
+};
 
 const gridStyle: React.CSSProperties = {
   display: "grid",
@@ -189,10 +231,20 @@ const gridStyle: React.CSSProperties = {
 
 const statCardStyle: React.CSSProperties = {
   background: "#fff",
-  border: "1px solid #e2e8f0",
+  border: "1px solid #E2E8F0",
   borderRadius: 16,
   padding: 20,
   boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+};
+
+const iconBadgeStyle: React.CSSProperties = {
+  width: 36,
+  height: 36,
+  borderRadius: 10,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 18,
 };
 
 const panelsStyle: React.CSSProperties = {
@@ -204,10 +256,32 @@ const panelsStyle: React.CSSProperties = {
 
 const panelStyle: React.CSSProperties = {
   background: "#fff",
-  border: "1px solid #e2e8f0",
+  border: "1px solid #E2E8F0",
   borderRadius: 16,
   padding: 20,
   boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+};
+
+const panelTitleStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 16,
+  fontWeight: 700,
+  color: "#12181F",
+};
+
+const dotStyle: React.CSSProperties = {
+  width: 8,
+  height: 8,
+  borderRadius: "50%",
+  flexShrink: 0,
+};
+
+const rowStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 16,
+  padding: "12px 0",
+  borderBottom: "1px solid #F1F5F9",
 };
 
 export default Dashboard;
