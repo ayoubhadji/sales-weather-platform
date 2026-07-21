@@ -4,17 +4,24 @@ import { WeatherCondition } from 'src/common/enums/weather-condition.enum';
 import { Repository } from 'typeorm';
 import { Weather } from './entities/weather.entity';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class WeatherApiService {
   constructor(
     @InjectRepository(Weather)
     private readonly weatherRepository: Repository<Weather>,
+    private readonly configService: ConfigService,
   ) {}
 
   async getCurrentWeather() {
-    const latitude = 36.8065; // Tunis
-    const longitude = 10.1815;
+    // const latitude = 36.8065; // Tunis
+    // const longitude = 10.1815;
+
+    // const latitude = 33.8076; // Djerba
+    // const longitude = 10.8451;
+    const latitude = this.configService.get<number>('WEATHER_LATITUDE'); 
+    const longitude = this.configService.get<number>('WEATHER_LONGITUDE');
 
     const url =
       `https://api.open-meteo.com/v1/forecast` +
@@ -110,8 +117,10 @@ export class WeatherApiService {
   // Weather row for tomorrow (required by the prediction pipeline).
   async getForecast() {
 
-  const latitude = 36.8065;
-  const longitude = 10.1815;
+  // const latitude = 33.8076; // Djerba
+  // const longitude = 10.8451;
+  const latitude = this.configService.get<number>('WEATHER_LATITUDE'); 
+  const longitude = this.configService.get<number>('WEATHER_LONGITUDE');
 
   const url =
     `https://api.open-meteo.com/v1/forecast` +
