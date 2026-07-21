@@ -21,6 +21,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+// Visual style (background/foreground colors + icon) per weather condition.
+// Reused for both the date-group badge and the detail modal.
 const CONDITION_STYLE: Record<
   string,
   { bg: string; fg: string; icon: typeof Sun }
@@ -32,10 +34,15 @@ const CONDITION_STYLE: Record<
   FOG: { bg: "#f1f5f9", fg: "#64748b", icon: CloudFog },
 };
 
+// Falls back to the "Cloudy" style if the condition is missing/unrecognized,
+// so the UI never breaks on unexpected data.
 function getConditionStyle(condition?: string) {
   return CONDITION_STYLE[condition ?? ""] ?? CONDITION_STYLE.CLOUDY;
 }
 
+// Green/orange/red badge depending on how much we should trust a prediction.
+// Thresholds mirror the confidence scale used by the backend heuristic and
+// the Python ML service (both cap around 85%, so 70%+ is "as good as it gets").
 function confidenceBadgeStyle(confidence: number) {
   if (confidence >= 70) return badge("#dcfce7", colors.success);
   if (confidence >= 45) return badge("#fef3c7", colors.warning);
@@ -45,10 +52,14 @@ function confidenceBadgeStyle(confidence: number) {
 function Predictions() {
   const [predictions, setPredictions] = useState<SalesPrediction[]>([]);
   const [loading, setLoading] = useState(true);
+  // Which date's detail table is currently expanded (only one at a time).
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
+  // Product/Weather detail modals — set to open, null to close.
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedWeather, setSelectedWeather] = useState<Weather | null>(null);
+
+  // State for the "Check tomorrow's predictions" button.
   const [generating, setGenerating] = useState(false);
   const [generateMessage, setGenerateMessage] = useState<string | null>(null);
 
@@ -56,7 +67,8 @@ function Predictions() {
     void loadPredictions();
   }, []);
 
-  // Close on Escape, lock scroll while a modal is open
+  // Close any open modal on Escape, and lock page scroll while one is open
+  // (otherwise the user could scroll the background behind the overlay).
   useEffect(() => {
     const hasModalOpen = !!selectedProduct || !!selectedWeather;
     if (!hasModalOpen) return;
@@ -87,6 +99,13 @@ function Predictions() {
     }
   }
 
+  /**
+   * Manual fallback for the nightly cron job. Calls the same endpoint the
+   * cron uses, WITHOUT the `force` flag — the backend already checks
+   * whether tomorrow's predictions exist before recomputing anything, so
+   * this is always safe to click, even if the data is already up to date.
+   * Useful if the app/server wasn't running when the 3 AM job would have run.
+   */
   async function handleGenerateTomorrow() {
     setGenerating(true);
     setGenerateMessage(null);
@@ -94,10 +113,8 @@ function Predictions() {
     const beforeIds = new Set(predictions.map((p) => p.id));
 
     try {
-      // This endpoint already checks if tomorrow's predictions exist first,
-      // and only computes new ones if they don't — safe to call anytime.
       await api.get("/predictions/tomorrow-demand");
-      await loadPredictions();
+      await loadPredictions(); // refresh the table with any newly created rows
 
       setGenerateMessage(
         beforeIds.size === 0 ? "Predictions generated." : "Tomorrow's predictions are ready."
@@ -107,10 +124,16 @@ function Predictions() {
       setGenerateMessage("Could not generate predictions — check the server.");
     } finally {
       setGenerating(false);
-      setTimeout(() => setGenerateMessage(null), 4000);
+      setTimeout(() => setGenerateMessage(null), 4000); // auto-dismiss the message
     }
   }
 
+  /**
+   * Groups the flat list of predictions by predictionDate, and computes a
+   * summary (total revenue/quantity, average confidence) per date. This is
+   * what powers the "one card per date" layout instead of one giant table.
+   * Recomputed only when `predictions` changes (useMemo), not on every render.
+   */
   const groupedByDate = useMemo(() => {
     const groups = new Map<string, SalesPrediction[]>();
     for (const prediction of predictions) {
@@ -126,6 +149,8 @@ function Predictions() {
         return {
           date,
           items,
+          // All predictions for the same date share the same weather record,
+          // so the first item's weather represents the whole group.
           weather: items[0]?.weather,
           totalRevenue: Math.round(totalRevenue * 100) / 100,
           totalQuantity,
@@ -133,7 +158,7 @@ function Predictions() {
           productCount: items.length,
         };
       })
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => b.date.localeCompare(a.date)); // most recent date first
   }, [predictions]);
 
   return (
@@ -161,6 +186,7 @@ function Predictions() {
         }
       />
 
+      {/* One card per date, sorted newest first */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {loading ? (
           <div style={card}>
@@ -178,7 +204,7 @@ function Predictions() {
 
             return (
               <div key={group.date} style={{ ...card, padding: 0, overflow: "hidden" }}>
-                {/* Date summary row — click to expand */}
+                {/* Date summary row — click anywhere on it to expand/collapse */}
                 <button
                   onClick={() => setExpandedDate(isOpen ? null : group.date)}
                   style={dateSummaryButtonStyle}
@@ -189,6 +215,8 @@ function Predictions() {
                       {group.date}
                     </span>
                     {group.weather && (
+                      // stopPropagation so clicking the weather badge opens the
+                      // weather modal WITHOUT also toggling the date row below it
                       <span
                         role="button"
                         onClick={(e) => {
@@ -219,7 +247,7 @@ function Predictions() {
                   </div>
                 </button>
 
-                {/* Expanded per-product detail for this date */}
+                {/* Expanded per-product detail table for this date only */}
                 {isOpen && (
                   <div style={{ borderTop: `1px solid ${colors.border}` }}>
                     <table style={table}>
@@ -262,6 +290,8 @@ function Predictions() {
                               </span>
                             </td>
                             <td style={td}>
+                              {/* "ml" = came from the trained Python model,
+                                  "heuristic" = rule-based fallback was used instead */}
                               {prediction.method === "ml" ? (
                                 <span style={badge("#ede9fe", "#6d28d9")}>🐍 ML</span>
                               ) : (
@@ -280,6 +310,7 @@ function Predictions() {
         )}
       </div>
 
+      {/* Product detail modal */}
       {selectedProduct && (
         <div style={overlayStyle} onClick={() => setSelectedProduct(null)}>
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
@@ -291,6 +322,8 @@ function Predictions() {
               <X size={18} />
             </button>
 
+            {/* Solid background behind the image so a transparent PNG never
+                shows through unexpectedly */}
             <div
               style={{
                 width: "100%",
@@ -361,6 +394,7 @@ function Predictions() {
         </div>
       )}
 
+      {/* Weather detail modal */}
       {selectedWeather && (
         <div style={overlayStyle} onClick={() => setSelectedWeather(null)}>
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
@@ -372,6 +406,8 @@ function Predictions() {
               <X size={18} />
             </button>
 
+            {/* IIFE so we can compute conditionStyle/ConditionIcon once,
+                right where they're used, without polluting component scope */}
             {(() => {
               const conditionStyle = getConditionStyle(selectedWeather.weatherCondition);
               const ConditionIcon = conditionStyle.icon;
@@ -440,6 +476,8 @@ function Predictions() {
   );
 }
 
+// Small right-aligned label/value pair used in the date summary row
+// (Products / Qty / Revenue).
 function SummaryStat({ label, value }: { label: string; value: string | number }) {
   return (
     <div style={{ textAlign: "right" }}>
@@ -529,6 +567,9 @@ const generateButtonStyle: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
+// Injected once via a <style> tag (rather than separate CSS files) so this
+// component stays self-contained. Covers modal enter animations, the
+// underline-on-hover product links, and the spinning refresh icon.
 const modalKeyframes = `
 @keyframes overlayFadeIn {
   from { opacity: 0; }

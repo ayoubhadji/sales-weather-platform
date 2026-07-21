@@ -3,7 +3,17 @@ import api from "../../services/api";
 import type { Weather } from "../../types/Weather";
 import PageHeader from "../../components/PageHeader";
 import { card, colors } from "../../styles/common";
-import { CloudSun, RotateCcw, Sun, Cloud, CloudRain, CloudLightning, CloudFog } from "lucide-react";
+import {
+  CloudSun,
+  RotateCcw,
+  Sun,
+  Cloud,
+  CloudRain,
+  CloudLightning,
+  CloudFog,
+  Sparkles,
+  CheckCircle2,
+} from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /* Weather -> visual theme mapping                                            */
@@ -73,11 +83,54 @@ function getWeatherTheme(condition?: string): WeatherTheme {
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* Actual vs predicted                                                        */
+/* -------------------------------------------------------------------------- */
+
+// Heuristic fallback: a date after today can't be a real recorded reading,
+// so treat it as a prediction. If your Weather entity/API already exposes an
+// explicit flag (e.g. `isPredicted` or `source`), swap this for that field —
+// it'll be more reliable than a date guess, especially for backfilled data.
+function isPredicted(entry: Weather): boolean {
+  const anyEntry = entry as any;
+  if (typeof anyEntry.isPredicted === "boolean") return anyEntry.isPredicted;
+  if (typeof anyEntry.source === "string") return anyEntry.source.toLowerCase() !== "actual";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const entryDate = new Date(entry.weatherDate);
+  entryDate.setHours(0, 0, 0, 0);
+  return entryDate.getTime() > today.getTime();
+}
+
+function SourceBadge({ predicted }: { predicted: boolean }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 700,
+        backgroundColor: predicted ? "#7c3aed1a" : "#16a34a1a",
+        color: predicted ? "#7c3aed" : "#16a34a",
+        border: predicted ? "1px dashed #7c3aed66" : "1px solid transparent",
+      }}
+    >
+      {predicted ? <Sparkles size={12} /> : <CheckCircle2 size={12} />}
+      {predicted ? "Predicted" : "Actual"}
+    </span>
+  );
+}
+
 function WeatherPage() {
   const [weather, setWeather] = useState<Weather[]>([]);
   const [currentWeather, setCurrentWeather] = useState<Weather | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<"all" | "actual" | "predicted">("all");
 
   useEffect(() => {
     void loadWeather();
@@ -114,6 +167,24 @@ function WeatherPage() {
 
   const theme = getWeatherTheme(currentWeather?.weatherCondition);
 
+  const sortedWeather = useMemo(
+    () =>
+      [...weather].sort(
+        (a, b) => new Date(b.weatherDate).getTime() - new Date(a.weatherDate).getTime(),
+      ),
+    [weather],
+  );
+
+  const actualCount = useMemo(() => weather.filter((w) => !isPredicted(w)).length, [weather]);
+  const predictedCount = useMemo(() => weather.filter((w) => isPredicted(w)).length, [weather]);
+
+  const filteredWeather = useMemo(() => {
+    if (sourceFilter === "all") return sortedWeather;
+    return sortedWeather.filter((w) =>
+      sourceFilter === "predicted" ? isPredicted(w) : !isPredicted(w),
+    );
+  }, [sortedWeather, sourceFilter]);
+
   return (
     <div>
       <style>{globalKeyframes}</style>
@@ -136,11 +207,42 @@ function WeatherPage() {
           />
 
           <section style={{ ...card, marginTop: 20 }}>
-            <h2 style={{ marginTop: 0 }}>Weather History</h2>
-            {weather.length === 0 ? (
-              <p style={{ color: colors.textMuted }}>No historical weather records found.</p>
+            <div style={historyHeader}>
+              <h2 style={{ margin: 0 }}>Weather History</h2>
+
+              <div style={filterChips}>
+                <FilterChip
+                  label="All"
+                  count={weather.length}
+                  color={colors.dark}
+                  active={sourceFilter === "all"}
+                  onClick={() => setSourceFilter("all")}
+                />
+                <FilterChip
+                  label="Actual"
+                  count={actualCount}
+                  color="#16a34a"
+                  active={sourceFilter === "actual"}
+                  onClick={() => setSourceFilter(sourceFilter === "actual" ? "all" : "actual")}
+                />
+                <FilterChip
+                  label="Predicted"
+                  count={predictedCount}
+                  color="#7c3aed"
+                  active={sourceFilter === "predicted"}
+                  onClick={() =>
+                    setSourceFilter(sourceFilter === "predicted" ? "all" : "predicted")
+                  }
+                />
+              </div>
+            </div>
+
+            {filteredWeather.length === 0 ? (
+              <p style={{ color: colors.textMuted, marginTop: 12 }}>
+                No {sourceFilter !== "all" ? sourceFilter : ""} weather records found.
+              </p>
             ) : (
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", marginTop: 12 }}>
                 <table style={tableStyle}>
                   <thead>
                     <tr>
@@ -150,20 +252,52 @@ function WeatherPage() {
                       <th style={thStyle}>Rainfall</th>
                       <th style={thStyle}>Wind speed</th>
                       <th style={thStyle}>Condition</th>
+                      <th style={thStyle}>Source</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {weather.map((entry, i) => {
+                    {filteredWeather.map((entry, i) => {
                       const rowTheme = getWeatherTheme(entry.weatherCondition);
+                      const predicted = isPredicted(entry);
                       return (
-                        <tr key={entry.id} style={{ backgroundColor: i % 2 === 1 ? "#f8fafc" : "#fff" }}>
+                        <tr
+                          key={entry.id}
+                          style={{
+                            backgroundColor: predicted
+                              ? "#7c3aed08"
+                              : i % 2 === 1
+                              ? "#f8fafc"
+                              : "#fff",
+                            borderLeft: predicted
+                              ? "3px dashed #7c3aed66"
+                              : "3px solid transparent",
+                          }}
+                        >
                           <td style={tdStyle}>{entry.weatherDate}</td>
-                          <td style={{ ...tdStyle, fontWeight: 700 }}>{entry.temperature} °C</td>
-                          <td style={tdStyle}>{entry.humidity}%</td>
-                          <td style={tdStyle}>{entry.rainfall} mm</td>
-                          <td style={tdStyle}>{entry.windSpeed} km/h</td>
+                          <td
+                            style={{
+                              ...tdStyle,
+                              fontWeight: 700,
+                              fontStyle: predicted ? "italic" : "normal",
+                              opacity: predicted ? 0.85 : 1,
+                            }}
+                          >
+                            {entry.temperature} °C
+                          </td>
+                          <td style={{ ...tdStyle, opacity: predicted ? 0.85 : 1 }}>
+                            {entry.humidity}%
+                          </td>
+                          <td style={{ ...tdStyle, opacity: predicted ? 0.85 : 1 }}>
+                            {entry.rainfall} mm
+                          </td>
+                          <td style={{ ...tdStyle, opacity: predicted ? 0.85 : 1 }}>
+                            {entry.windSpeed} km/h
+                          </td>
                           <td style={tdStyle}>
                             <ConditionBadge condition={entry.weatherCondition} theme={rowTheme} />
+                          </td>
+                          <td style={tdStyle}>
+                            <SourceBadge predicted={predicted} />
                           </td>
                         </tr>
                       );
@@ -176,6 +310,42 @@ function WeatherPage() {
         </>
       )}
     </div>
+  );
+}
+
+function FilterChip({
+  label,
+  count,
+  color,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  color: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "6px 12px",
+        borderRadius: 999,
+        fontSize: 13,
+        fontWeight: 600,
+        background: "#fff",
+        border: active ? `2px solid ${color}` : `1px solid ${colors.border}`,
+        color: active ? color : colors.dark,
+        cursor: "pointer",
+      }}
+    >
+      {label}
+      <span style={{ fontWeight: 700, color }}>{count}</span>
+    </button>
   );
 }
 
@@ -483,6 +653,20 @@ function FogLayers() {
 /* -------------------------------------------------------------------------- */
 /* Styles                                                                      */
 /* -------------------------------------------------------------------------- */
+
+const historyHeader: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  gap: 12,
+};
+
+const filterChips: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
 
 const metricsGrid: React.CSSProperties = {
   display: "grid",
