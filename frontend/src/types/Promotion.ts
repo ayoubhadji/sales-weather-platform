@@ -1,11 +1,12 @@
+import type { Product } from "./Product";
+
 export interface Promotion {
   id: number;
-  product: {
-    id: number;
-    name: string;
-  };
+  product: Product;
   discountPercentage: number;
   reason: string;
   startDate: string;
   endDate: string;
+  applied: boolean;
+  originalPrice: number | null;
 }

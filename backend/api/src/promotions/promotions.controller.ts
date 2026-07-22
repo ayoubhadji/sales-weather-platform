@@ -38,6 +38,19 @@ export class PromotionsController {
     return this.promotionsService.update(+id, updatePromotionDto);
   }
 
+  // Actually discounts the product's current price and remembers the
+  // pre-discount value so it can be reverted later.
+  @Post(':id/apply')
+  apply(@Param('id') id: string) {
+    return this.promotionsService.apply(+id);
+  }
+
+  // Restores the product's price to what it was before this promotion.
+  @Post(':id/revert')
+  revert(@Param('id') id: string) {
+    return this.promotionsService.revert(+id);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.promotionsService.remove(+id);

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Promotion } from './entities/promotion.entity';
@@ -37,11 +37,17 @@ export class PromotionsService {
   }
 
   async findAll(): Promise<Promotion[]> {
-    return this.promotionRepository.find();
+    return this.promotionRepository.find({
+      relations: { product: true },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async findOne(id: number): Promise<Promotion> {
-    const promotion = await this.promotionRepository.findOne({ where: { id } });
+    const promotion = await this.promotionRepository.findOne({
+      where: { id },
+      relations: { product: true },
+    });
 
     if (!promotion) {
       throw new NotFoundException(`Promotion with ID ${id} not found.`);
@@ -63,4 +69,49 @@ export class PromotionsService {
     const promotion = await this.findOne(id);
     await this.promotionRepository.remove(promotion);
   }
-}
+
+  /**
+   * Actually discounts the product's current price by discountPercentage,
+   * and remembers the pre-discount price so it can be reverted later.
+   * Safe to call only once per promotion — throws if already applied.
+   */
+  async apply(id: number): Promise<Promotion> {
+    const promotion = await this.findOne(id);
+
+    if (promotion.applied) {
+      throw new BadRequestException('This promotion has already been applied.');
+    }
+
+    const product = promotion.product;
+    const currentPrice = Number(product.price);
+    const discountedPrice =
+      Math.round(currentPrice * (1 - Number(promotion.discountPercentage) / 100) * 100) / 100;
+
+    product.price = discountedPrice;
+    await this.productRepository.save(product);
+
+    promotion.applied = true;
+    promotion.originalPrice = currentPrice;
+    return this.promotionRepository.save(promotion);
+  }
+
+  /**
+   * Restores the product's price to what it was before this promotion was
+   * applied. Safe to call only if the promotion is currently applied.
+   */
+  async revert(id: number): Promise<Promotion> {
+    const promotion = await this.findOne(id);
+
+    if (!promotion.applied || promotion.originalPrice === null) {
+      throw new BadRequestException('This promotion has not been applied.');
+    }
+
+    const product = promotion.product;
+    product.price = Number(promotion.originalPrice);
+    await this.productRepository.save(product);
+
+    promotion.applied = false;
+    promotion.originalPrice = null;
+    return this.promotionRepository.save(promotion);
+  }
+} 

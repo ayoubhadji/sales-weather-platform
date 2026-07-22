@@ -1,9 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { Tag, Percent, Calendar, PackageSearch, Sparkles, Loader2 } from "lucide-react";
+import {
+  Tag,
+  Percent,
+  Calendar,
+  PackageSearch,
+  Sparkles,
+  Loader2,
+  Plus,
+  X,
+  Zap,
+  Undo2,
+  CheckCircle2,
+} from "lucide-react";
 import PageHeader from "../../components/PageHeader";
 import api from "../../services/api";
-import { card, colors } from "../../styles/common";
+import { card, colors, primaryButton } from "../../styles/common";
 import type { Promotion } from "../../types/Promotion";
+import type { Product } from "../../types/Product";
 
 type Status = "upcoming" | "active" | "expired";
 
@@ -45,6 +58,20 @@ function Promotions() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
 
+  // "Add Promotion" modal state
+  const [products, setProducts] = useState<Product[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newProductId, setNewProductId] = useState("");
+  const [newDiscount, setNewDiscount] = useState("");
+  const [newReason, setNewReason] = useState("");
+  const [newStartDate, setNewStartDate] = useState("");
+  const [newEndDate, setNewEndDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  // Per-row apply/revert loading state (by promotion id)
+  const [applyingId, setApplyingId] = useState<number | null>(null);
+
   // Placeholder state for the future "suggested promotions for tomorrow"
   // feature. Not wired to a real endpoint yet.
   const [suggestions, setSuggestions] = useState<SuggestedPromotion[] | null>(null);
@@ -52,7 +79,22 @@ function Promotions() {
 
   useEffect(() => {
     void loadPromotions();
+    void loadProducts();
   }, []);
+
+  // Lock page scroll + close on Escape while the Add modal is open
+  useEffect(() => {
+    if (!showAddModal) return;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowAddModal(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showAddModal]);
 
   async function loadPromotions() {
     try {
@@ -62,6 +104,75 @@ function Promotions() {
       console.error("Error loading admin promotions:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadProducts() {
+    try {
+      const response = await api.get("/products");
+      setProducts(response.data);
+    } catch (error) {
+      console.error("Error loading products for promotion form:", error);
+    }
+  }
+
+  function openAddModal() {
+    setNewProductId("");
+    setNewDiscount("");
+    setNewReason("");
+    setNewStartDate("");
+    setNewEndDate("");
+    setSaveError("");
+    setShowAddModal(true);
+  }
+
+  async function handleCreatePromotion(e: React.FormEvent) {
+    e.preventDefault();
+    setSaveError("");
+    setSaving(true);
+
+    try {
+      await api.post("/promotions", {
+        productId: Number(newProductId),
+        discountPercentage: Number(newDiscount),
+        reason: newReason,
+        startDate: newStartDate,
+        endDate: newEndDate,
+      });
+
+      setShowAddModal(false);
+      await loadPromotions();
+    } catch (error) {
+      console.error("Error creating promotion:", error);
+      setSaveError("Could not create the promotion. Check the fields and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleApply(promotion: Promotion) {
+    setApplyingId(promotion.id);
+    try {
+      await api.post(`/promotions/${promotion.id}/apply`);
+      await loadPromotions();
+    } catch (error) {
+      console.error("Error applying promotion:", error);
+      window.alert("Could not apply this promotion — it may already be applied.");
+    } finally {
+      setApplyingId(null);
+    }
+  }
+
+  async function handleRevert(promotion: Promotion) {
+    setApplyingId(promotion.id);
+    try {
+      await api.post(`/promotions/${promotion.id}/revert`);
+      await loadPromotions();
+    } catch (error) {
+      console.error("Error reverting promotion:", error);
+      window.alert("Could not revert this promotion.");
+    } finally {
+      setApplyingId(null);
     }
   }
 
@@ -107,10 +218,18 @@ function Promotions() {
 
   return (
     <div>
+      <style>{modalKeyframes}</style>
+
       <PageHeader
         icon={Tag}
         title="Promotions"
         description="Track active discounts and the reasons behind each campaign."
+        action={
+          <button style={{ ...primaryButton, display: "flex", alignItems: "center", gap: 8 }} onClick={openAddModal}>
+            <Plus size={16} />
+            Add Promotion
+          </button>
+        }
       />
 
       {/* Summary cards */}
@@ -207,11 +326,14 @@ function Promotions() {
                 <th style={thStyle}>Start Date</th>
                 <th style={thStyle}>End Date</th>
                 <th style={thStyle}>Status</th>
+                <th style={thStyle}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((promotion) => {
                 const statusInfo = STATUS_STYLES[promotion.status];
+                const isApplying = applyingId === promotion.id;
+
                 return (
                   <tr key={promotion.id} style={rowStyle}>
                     <td style={tdStyle}>
@@ -254,6 +376,41 @@ function Promotions() {
                         {statusInfo.label}
                       </span>
                     </td>
+                    <td style={{ ...tdStyle, textAlign: "right" }}>
+                      {promotion.applied ? (
+                        <button
+                          onClick={() => handleRevert(promotion)}
+                          disabled={isApplying}
+                          style={revertButtonStyle}
+                        >
+                          {isApplying ? (
+                            <Loader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
+                          ) : (
+                            <Undo2 size={14} />
+                          )}
+                          Revert
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleApply(promotion)}
+                          disabled={isApplying}
+                          style={applyButtonStyle}
+                        >
+                          {isApplying ? (
+                            <Loader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
+                          ) : (
+                            <Zap size={14} />
+                          )}
+                          Apply
+                        </button>
+                      )}
+                      {promotion.applied && (
+                        <span style={appliedHint}>
+                          <CheckCircle2 size={12} />
+                          Applied
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -261,6 +418,124 @@ function Promotions() {
           </table>
         )}
       </div>
+
+      {/* Add Promotion modal */}
+      {showAddModal && (
+        <div style={overlayStyle} onClick={() => setShowAddModal(false)}>
+          <form
+            style={modalStyle}
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={handleCreatePromotion}
+          >
+            <button
+              type="button"
+              onClick={() => setShowAddModal(false)}
+              style={closeButtonStyle}
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+
+            <h2 style={{ margin: "0 0 20px", fontSize: 19, color: colors.dark }}>
+              Add Promotion
+            </h2>
+
+            <div style={{ display: "grid", gap: 14 }}>
+              <label style={fieldLabelStyle}>
+                Product
+                <select
+                  value={newProductId}
+                  onChange={(e) => setNewProductId(e.target.value)}
+                  style={fieldInputStyle}
+                  required
+                >
+                  <option value="" disabled>
+                    Select a product...
+                  </option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {p.price} DT
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={fieldLabelStyle}>
+                Discount (%)
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value={newDiscount}
+                  onChange={(e) => setNewDiscount(e.target.value)}
+                  style={fieldInputStyle}
+                  required
+                />
+              </label>
+
+              <label style={fieldLabelStyle}>
+                Reason
+                <input
+                  value={newReason}
+                  onChange={(e) => setNewReason(e.target.value)}
+                  style={fieldInputStyle}
+                  placeholder="e.g. High temperature expected"
+                  required
+                />
+              </label>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <label style={fieldLabelStyle}>
+                  Start date
+                  <input
+                    type="date"
+                    value={newStartDate}
+                    onChange={(e) => setNewStartDate(e.target.value)}
+                    style={fieldInputStyle}
+                    required
+                  />
+                </label>
+                <label style={fieldLabelStyle}>
+                  End date
+                  <input
+                    type="date"
+                    value={newEndDate}
+                    onChange={(e) => setNewEndDate(e.target.value)}
+                    style={fieldInputStyle}
+                    required
+                  />
+                </label>
+              </div>
+            </div>
+
+            {saveError && (
+              <p style={{ color: colors.danger, fontSize: 13, marginTop: 14 }}>{saveError}</p>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 10,
+                  border: `1px solid ${colors.border}`,
+                  background: "#fff",
+                  color: colors.dark,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                Cancel
+              </button>
+              <button type="submit" style={primaryButton} disabled={saving}>
+                {saving ? "Saving..." : "Create promotion"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
@@ -326,7 +601,7 @@ function EmptyState({ hasFilter }: { hasFilter: boolean }) {
       <p style={{ margin: 0, fontSize: 13, color: colors.textMuted }}>
         {hasFilter
           ? "Try selecting a different status above."
-          : "Promotions you create will show up here."}
+          : "Click \"Add Promotion\" to create your first one."}
       </p>
     </div>
   );
@@ -520,5 +795,116 @@ const suggestRow: React.CSSProperties = {
   gap: 12,
   fontSize: 14,
 };
+
+/* --- Apply/Revert button styles --- */
+
+const applyButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "7px 12px",
+  borderRadius: 8,
+  border: "none",
+  background: colors.dark,
+  color: "#fff",
+  fontWeight: 600,
+  fontSize: 12,
+  cursor: "pointer",
+};
+
+const revertButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "7px 12px",
+  borderRadius: 8,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  color: colors.dark,
+  fontWeight: 600,
+  fontSize: 12,
+  cursor: "pointer",
+};
+
+const appliedHint: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  marginLeft: 8,
+  fontSize: 11,
+  color: colors.success,
+  fontWeight: 600,
+};
+
+/* --- Add Promotion modal styles --- */
+
+const overlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(15,23,42,0.5)",
+  backdropFilter: "blur(3px)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 999,
+  animation: "overlayFadeIn 0.15s ease",
+};
+
+const modalStyle: React.CSSProperties = {
+  width: 440,
+  maxWidth: "calc(100vw - 32px)",
+  background: "#fff",
+  borderRadius: 18,
+  padding: 26,
+  position: "relative",
+  boxShadow: "0 24px 60px rgba(15,23,42,0.25)",
+  animation: "modalPopIn 0.18s ease",
+};
+
+const closeButtonStyle: React.CSSProperties = {
+  position: "absolute",
+  top: 16,
+  right: 16,
+  width: 30,
+  height: 30,
+  borderRadius: "50%",
+  border: "none",
+  background: "#f1f5f9",
+  color: colors.dark,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+};
+
+const fieldLabelStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: colors.dark,
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+};
+
+const fieldInputStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: `1px solid ${colors.border}`,
+  fontSize: 14,
+  fontWeight: 400,
+  color: colors.dark,
+  outline: "none",
+};
+
+const modalKeyframes = `
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalPopIn {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+`;
 
 export default Promotions;

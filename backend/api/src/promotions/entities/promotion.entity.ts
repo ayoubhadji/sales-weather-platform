@@ -39,6 +39,23 @@ export class Promotion {
   })
   endDate!: Date;
 
+  // Whether the discount has actually been applied to the product's price
+  // (as opposed to just being a planned/recorded promotion).
+  @Column({
+    default: false,
+  })
+  applied!: boolean;
+
+  // The product's price right before this promotion was applied, so it can
+  // be restored exactly if the promotion is reverted later.
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  originalPrice!: number | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 
