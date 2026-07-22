@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   FileDown,
@@ -10,6 +10,7 @@ import {
   Loader2,
   Sparkles,
   AlertCircle,
+  Send,
 } from "lucide-react";
 import PageHeader from "../../components/PageHeader";
 import api from "../../services/api";
@@ -42,6 +43,11 @@ type AiAdvice = {
   recommendations: string[];
 };
 
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 const PIE_COLORS = [
   "#2563eb",
   "#16a34a",
@@ -71,14 +77,25 @@ function Reports() {
     { category: string; sales: number }[]
   >([]);
 
-  const [aiAdvice, setAiAdvice] = useState<AiAdvice | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  // --- AI Advisor chat state ---
+  // `messages` holds the whole visible conversation (both the initial
+  // headline/recommendations turned into a message, and every follow-up).
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [aiStarting, setAiStarting] = useState(false); // loading the very first message
+  const [aiSending, setAiSending] = useState(false); // loading a follow-up reply
   const [aiError, setAiError] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadAll();
     loadFranchises();
   }, []);
+
+  // Keep the chat scrolled to the latest message as the conversation grows.
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, aiSending]);
 
   const hasActiveFilters = Boolean(startDate || endDate || selectedFranchise);
 
@@ -151,29 +168,81 @@ function Reports() {
     setSelectedFranchise("");
   }
 
-  async function getAiAdvice() {
-    setAiLoading(true);
+  function currentFranchiseName() {
+    return (
+      franchises.find((f) => String(f.id) === selectedFranchise)?.name ||
+      "All franchises"
+    );
+  }
+
+  function reportContextPayload() {
+    return {
+      summary,
+      revenueTrend,
+      categorySales,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      franchiseName: currentFranchiseName(),
+    };
+  }
+
+  /** Kicks off the conversation using the existing one-shot advice endpoint,
+   * formatted into the first assistant chat bubble. */
+  async function startConversation() {
+    setAiStarting(true);
     setAiError("");
     try {
-      const franchiseName =
-        franchises.find((f) => String(f.id) === selectedFranchise)?.name ||
-        "All franchises";
+      const response = await api.post<AiAdvice>("/reports/ai-advice", reportContextPayload());
+      const advice = response.data;
 
-      const response = await api.post("/reports/ai-advice", {
-        summary,
-        revenueTrend,
-        categorySales,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        franchiseName,
-      });
+      const opening = [
+        advice.headline,
+        "",
+        ...advice.recommendations.map((r) => `• ${r}`),
+      ].join("\n");
 
-      setAiAdvice(response.data);
+      setMessages([{ role: "assistant", content: opening }]);
     } catch (error) {
       console.error("Error getting AI advice:", error);
       setAiError("Could not generate advice right now. Try again in a moment.");
     } finally {
-      setAiLoading(false);
+      setAiStarting(false);
+    }
+  }
+
+  /** Sends a follow-up question, resending the full report context + chat
+   * history each time (the backend has no memory of its own). */
+  async function sendChatMessage() {
+    const text = chatInput.trim();
+    if (!text || aiSending) return;
+
+    const userMessage: ChatMessage = { role: "user", content: text };
+    const updatedMessages = [...messages, userMessage];
+
+    setMessages(updatedMessages);
+    setChatInput("");
+    setAiSending(true);
+    setAiError("");
+
+    try {
+      const response = await api.post<{ reply: string }>("/reports/ai-chat", {
+        ...reportContextPayload(),
+        messages: updatedMessages,
+      });
+
+      setMessages((prev) => [...prev, { role: "assistant", content: response.data.reply }]);
+    } catch (error) {
+      console.error("Error chatting with AI advisor:", error);
+      setAiError("Could not get a reply right now. Try again in a moment.");
+    } finally {
+      setAiSending(false);
+    }
+  }
+
+  function handleChatKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void sendChatMessage();
     }
   }
 
@@ -373,7 +442,7 @@ function Reports() {
         </div>
       </div>
 
-      {/* AI Advisor */}
+      {/* AI Advisor — now a real chat instead of a single static answer */}
       <div style={{ ...card, ...aiCard }}>
         <div style={aiHeader}>
           <div style={aiHeaderLeft}>
@@ -383,30 +452,32 @@ function Reports() {
             <div>
               <h3 style={{ margin: 0 }}>AI Business Advisor</h3>
               <p style={aiSubtitle}>
-                Get quick, practical advice based on the report above — powered by Groq.
+                Chat about the report above — ask follow-up questions, powered by Groq.
               </p>
             </div>
           </div>
 
-          <button
-            style={{
-              ...primaryButton,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              opacity: aiLoading ? 0.75 : 1,
-              flexShrink: 0,
-            }}
-            onClick={getAiAdvice}
-            disabled={aiLoading}
-          >
-            {aiLoading ? (
-              <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} />
-            ) : (
-              <Sparkles size={16} />
-            )}
-            {aiLoading ? "Analyzing…" : aiAdvice ? "Refresh advice" : "Get AI advice"}
-          </button>
+          {messages.length === 0 && (
+            <button
+              style={{
+                ...primaryButton,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                opacity: aiStarting ? 0.75 : 1,
+                flexShrink: 0,
+              }}
+              onClick={startConversation}
+              disabled={aiStarting}
+            >
+              {aiStarting ? (
+                <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} />
+              ) : (
+                <Sparkles size={16} />
+              )}
+              {aiStarting ? "Analyzing…" : "Get AI advice"}
+            </button>
+          )}
         </div>
 
         {aiError && (
@@ -416,23 +487,76 @@ function Reports() {
           </div>
         )}
 
-        {aiAdvice && !aiLoading && (
-          <div style={aiResultBox}>
-            <p style={aiHeadline}>{aiAdvice.headline}</p>
-            <ul style={aiList}>
-              {aiAdvice.recommendations.map((rec, i) => (
-                <li key={i} style={aiListItem}>
-                  {rec}
-                </li>
-              ))}
-            </ul>
-          </div>
+        {messages.length === 0 && !aiStarting && !aiError && (
+          <p style={aiEmptyHint}>
+            Click "Get AI advice" to start a conversation about the current numbers.
+          </p>
         )}
 
-        {!aiAdvice && !aiLoading && !aiError && (
-          <p style={aiEmptyHint}>
-            Click "Get AI advice" to have it read the current numbers and suggest what to do next.
-          </p>
+        {messages.length > 0 && (
+          <>
+            <div style={chatLog}>
+              {messages.map((message, i) => (
+                <div
+                  key={i}
+                  style={{
+                    ...chatBubbleRow,
+                    justifyContent: message.role === "user" ? "flex-end" : "flex-start",
+                  }}
+                >
+                  {message.role === "assistant" && (
+                    <div style={chatAvatar}>
+                      <Sparkles size={14} color="#7c3aed" />
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      ...chatBubble,
+                      ...(message.role === "user" ? chatBubbleUser : chatBubbleAssistant),
+                    }}
+                  >
+                    {message.content}
+                  </div>
+                </div>
+              ))}
+
+              {aiSending && (
+                <div style={{ ...chatBubbleRow, justifyContent: "flex-start" }}>
+                  <div style={chatAvatar}>
+                    <Sparkles size={14} color="#7c3aed" />
+                  </div>
+                  <div style={{ ...chatBubble, ...chatBubbleAssistant, ...chatBubbleTyping }}>
+                    <Loader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
+                    Thinking…
+                  </div>
+                </div>
+              )}
+
+              <div ref={chatEndRef} />
+            </div>
+
+            <div style={chatInputRow}>
+              <textarea
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={handleChatKeyDown}
+                placeholder="Ask a follow-up question about this report..."
+                rows={1}
+                style={chatInputStyle}
+              />
+              <button
+                onClick={sendChatMessage}
+                disabled={aiSending || !chatInput.trim()}
+                style={{
+                  ...chatSendButton,
+                  opacity: aiSending || !chatInput.trim() ? 0.5 : 1,
+                }}
+                aria-label="Send"
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          </>
         )}
       </div>
 
@@ -639,6 +763,7 @@ const aiHeader: React.CSSProperties = {
   justifyContent: "space-between",
   gap: 16,
   flexWrap: "wrap",
+  marginBottom: 8,
 };
 
 const aiHeaderLeft: React.CSSProperties = {
@@ -684,31 +809,94 @@ const aiErrorBox: React.CSSProperties = {
   borderRadius: 10,
 };
 
-const aiResultBox: React.CSSProperties = {
-  marginTop: 18,
-  paddingTop: 18,
+/* --- Chat-specific styles --- */
+
+const chatLog: React.CSSProperties = {
+  marginTop: 16,
+  paddingTop: 16,
   borderTop: `1px solid ${colors.border}`,
-};
-
-const aiHeadline: React.CSSProperties = {
-  margin: 0,
-  marginBottom: 12,
-  fontWeight: 600,
-  color: colors.dark,
-};
-
-const aiList: React.CSSProperties = {
-  margin: 0,
-  paddingLeft: 20,
   display: "flex",
   flexDirection: "column",
+  gap: 12,
+  maxHeight: 360,
+  overflowY: "auto",
+};
+
+const chatBubbleRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "flex-end",
   gap: 8,
 };
 
-const aiListItem: React.CSSProperties = {
+const chatAvatar: React.CSSProperties = {
+  width: 26,
+  height: 26,
+  borderRadius: "50%",
+  background: "#7c3aed1a",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+};
+
+const chatBubble: React.CSSProperties = {
+  maxWidth: "75%",
+  padding: "10px 14px",
+  borderRadius: 14,
   fontSize: 14,
-  color: colors.dark,
   lineHeight: 1.5,
+  whiteSpace: "pre-wrap",
+};
+
+const chatBubbleAssistant: React.CSSProperties = {
+  background: "#f3f4f6",
+  color: colors.dark,
+  borderBottomLeftRadius: 4,
+};
+
+const chatBubbleUser: React.CSSProperties = {
+  background: colors.dark,
+  color: "#fff",
+  borderBottomRightRadius: 4,
+};
+
+const chatBubbleTyping: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  color: colors.textMuted,
+};
+
+const chatInputRow: React.CSSProperties = {
+  marginTop: 12,
+  display: "flex",
+  gap: 10,
+  alignItems: "flex-end",
+};
+
+const chatInputStyle: React.CSSProperties = {
+  flex: 1,
+  resize: "none",
+  padding: "10px 14px",
+  borderRadius: 12,
+  border: `1px solid ${colors.border}`,
+  fontSize: 14,
+  fontFamily: "inherit",
+  maxHeight: 120,
+};
+
+const chatSendButton: React.CSSProperties = {
+  width: 40,
+  height: 40,
+  borderRadius: 12,
+  border: "none",
+  background: colors.dark,
+  color: "#fff",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  flexShrink: 0,
 };
 
 export default Reports;

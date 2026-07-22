@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { GroqAdvisorService } from './Groq-advisor.service';
 import { GetAiAdviceDto } from './dto/get-ai-advice.dto';
+import { ChatWithAdvisorDto } from './dto/chat-with-advisor.dto';
 
 @Controller('reports')
 export class ReportsController {
@@ -53,5 +54,10 @@ export class ReportsController {
   @Post('ai-advice')
   getAiAdvice(@Body() body: GetAiAdviceDto) {
     return this.groqAdvisorService.getBusinessAdvice(body);
+  }
+
+  @Post('ai-chat')
+  chatWithAdvisor(@Body() body: ChatWithAdvisorDto) {
+    return this.groqAdvisorService.chatWithAdvisor(body);
   }
 }
