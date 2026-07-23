@@ -5,7 +5,9 @@ import {
   IsPositive,
   IsString,
   MaxLength,
+  Validate,
 } from 'class-validator';
+import { IsAfterStartDateConstraint } from '../is-after-start-date.validator';
 
 export class CreatePromotionDto {
   @IsNumber()
@@ -25,5 +27,6 @@ export class CreatePromotionDto {
   startDate!: string;
 
   @IsDateString()
+  @Validate(IsAfterStartDateConstraint)
   endDate!: string;
 }
