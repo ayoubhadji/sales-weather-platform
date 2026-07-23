@@ -11,6 +11,8 @@ import {
   Zap,
   Undo2,
   CheckCircle2,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import PageHeader from "../../components/PageHeader";
 import api from "../../services/api";
@@ -69,8 +71,19 @@ function Promotions() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
+  // "Edit Promotion" modal state
+  const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
+  const [editDiscount, setEditDiscount] = useState("");
+  const [editReason, setEditReason] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+
   // Per-row apply/revert loading state (by promotion id)
   const [applyingId, setApplyingId] = useState<number | null>(null);
+  // Per-row delete loading state (by promotion id)
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Placeholder state for the future "suggested promotions for tomorrow"
   // feature. Not wired to a real endpoint yet.
@@ -95,6 +108,20 @@ function Promotions() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [showAddModal]);
+
+  // Same lock/close behavior for the Edit modal
+  useEffect(() => {
+    if (!editingPromotion) return;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setEditingPromotion(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [editingPromotion]);
 
   async function loadPromotions() {
     try {
@@ -173,6 +200,62 @@ function Promotions() {
       window.alert("Could not revert this promotion.");
     } finally {
       setApplyingId(null);
+    }
+  }
+
+  function openEditModal(promotion: Promotion) {
+    setEditingPromotion(promotion);
+    setEditDiscount(promotion.discountPercentage.toString());
+    setEditReason(promotion.reason);
+    setEditStartDate(promotion.startDate.slice(0, 10));
+    setEditEndDate(promotion.endDate.slice(0, 10));
+    setEditError("");
+  }
+
+  async function handleUpdatePromotion(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingPromotion) return;
+
+    setEditError("");
+    setEditSaving(true);
+
+    try {
+      await api.patch(`/promotions/${editingPromotion.id}`, {
+        // Discount can't be changed once applied — the product price was
+        // already discounted using the original percentage, and changing
+        // it here wouldn't retroactively adjust that price.
+        ...(editingPromotion.applied ? {} : { discountPercentage: Number(editDiscount) }),
+        reason: editReason,
+        startDate: editStartDate,
+        endDate: editEndDate,
+      });
+
+      setEditingPromotion(null);
+      await loadPromotions();
+    } catch (error) {
+      console.error("Error updating promotion:", error);
+      setEditError("Could not save changes. Check the fields and try again.");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleDelete(promotion: Promotion) {
+    const confirmMessage = promotion.applied
+      ? "This promotion is currently applied — the product's price will stay discounted (it won't be reverted automatically). Delete anyway?"
+      : "Delete this promotion? This cannot be undone.";
+
+    if (!window.confirm(confirmMessage)) return;
+
+    setDeletingId(promotion.id);
+    try {
+      await api.delete(`/promotions/${promotion.id}`);
+      await loadPromotions();
+    } catch (error) {
+      console.error("Error deleting promotion:", error);
+      window.alert("Could not delete this promotion.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -377,33 +460,70 @@ function Promotions() {
                       </span>
                     </td>
                     <td style={{ ...tdStyle, textAlign: "right" }}>
-                      {promotion.applied ? (
+                      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        {promotion.applied ? (
+                          <button
+                            onClick={() => handleRevert(promotion)}
+                            disabled={isApplying}
+                            style={revertButtonStyle}
+                          >
+                            {isApplying ? (
+                              <Loader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
+                            ) : (
+                              <Undo2 size={14} />
+                            )}
+                            Revert
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleApply(promotion)}
+                            disabled={isApplying || promotion.status !== "active"}
+                            title={
+                              promotion.status === "upcoming"
+                                ? "This promotion hasn't started yet"
+                                : promotion.status === "expired"
+                                ? "This promotion has already ended"
+                                : undefined
+                            }
+                            style={{
+                              ...applyButtonStyle,
+                              opacity: promotion.status !== "active" ? 0.4 : 1,
+                              cursor: promotion.status !== "active" ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {isApplying ? (
+                              <Loader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
+                            ) : (
+                              <Zap size={14} />
+                            )}
+                            Apply
+                          </button>
+                        )}
+
                         <button
-                          onClick={() => handleRevert(promotion)}
-                          disabled={isApplying}
-                          style={revertButtonStyle}
+                          onClick={() => openEditModal(promotion)}
+                          style={iconButtonStyle}
+                          aria-label="Edit promotion"
+                          title="Edit"
                         >
-                          {isApplying ? (
+                          <Pencil size={14} />
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(promotion)}
+                          disabled={deletingId === promotion.id}
+                          style={{ ...iconButtonStyle, color: colors.danger, borderColor: "#fecaca" }}
+                          aria-label="Delete promotion"
+                          title="Delete"
+                        >
+                          {deletingId === promotion.id ? (
                             <Loader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
                           ) : (
-                            <Undo2 size={14} />
+                            <Trash2 size={14} />
                           )}
-                          Revert
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => handleApply(promotion)}
-                          disabled={isApplying}
-                          style={applyButtonStyle}
-                        >
-                          {isApplying ? (
-                            <Loader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
-                          ) : (
-                            <Zap size={14} />
-                          )}
-                          Apply
-                        </button>
-                      )}
+                      </div>
+
                       {promotion.applied && (
                         <span style={appliedHint}>
                           <CheckCircle2 size={12} />
@@ -531,6 +651,118 @@ function Promotions() {
               </button>
               <button type="submit" style={primaryButton} disabled={saving}>
                 {saving ? "Saving..." : "Create promotion"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Promotion modal */}
+      {editingPromotion && (
+        <div style={overlayStyle} onClick={() => setEditingPromotion(null)}>
+          <form
+            style={modalStyle}
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={handleUpdatePromotion}
+          >
+            <button
+              type="button"
+              onClick={() => setEditingPromotion(null)}
+              style={closeButtonStyle}
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+
+            <h2 style={{ margin: "0 0 4px", fontSize: 19, color: colors.dark }}>
+              Edit Promotion
+            </h2>
+            <p style={{ margin: "0 0 20px", fontSize: 13, color: colors.textMuted }}>
+              {editingPromotion.product?.name ?? "—"}
+            </p>
+
+            <div style={{ display: "grid", gap: 14 }}>
+              <label style={fieldLabelStyle}>
+                Discount (%)
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value={editDiscount}
+                  onChange={(e) => setEditDiscount(e.target.value)}
+                  style={{
+                    ...fieldInputStyle,
+                    ...(editingPromotion.applied
+                      ? { backgroundColor: "#f8fafc", color: colors.textMuted, cursor: "not-allowed" }
+                      : {}),
+                  }}
+                  disabled={editingPromotion.applied}
+                  required
+                />
+                {editingPromotion.applied && (
+                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 400 }}>
+                    Can't change the discount after it's been applied — revert it first.
+                  </span>
+                )}
+              </label>
+
+              <label style={fieldLabelStyle}>
+                Reason
+                <input
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                  style={fieldInputStyle}
+                  required
+                />
+              </label>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <label style={fieldLabelStyle}>
+                  Start date
+                  <input
+                    type="date"
+                    value={editStartDate}
+                    onChange={(e) => setEditStartDate(e.target.value)}
+                    style={fieldInputStyle}
+                    required
+                  />
+                </label>
+                <label style={fieldLabelStyle}>
+                  End date
+                  <input
+                    type="date"
+                    value={editEndDate}
+                    onChange={(e) => setEditEndDate(e.target.value)}
+                    style={fieldInputStyle}
+                    required
+                  />
+                </label>
+              </div>
+            </div>
+
+            {editError && (
+              <p style={{ color: colors.danger, fontSize: 13, marginTop: 14 }}>{editError}</p>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => setEditingPromotion(null)}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 10,
+                  border: `1px solid ${colors.border}`,
+                  background: "#fff",
+                  color: colors.dark,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                Cancel
+              </button>
+              <button type="submit" style={primaryButton} disabled={editSaving}>
+                {editSaving ? "Saving..." : "Save changes"}
               </button>
             </div>
           </form>
@@ -823,6 +1055,19 @@ const revertButtonStyle: React.CSSProperties = {
   color: colors.dark,
   fontWeight: 600,
   fontSize: 12,
+  cursor: "pointer",
+};
+
+const iconButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 30,
+  height: 30,
+  borderRadius: 8,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  color: colors.dark,
   cursor: "pointer",
 };
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
 import type { Product } from "../../types/Product";
+import type { Promotion } from "../../types/Promotion";
 import PageHeader from "../../components/PageHeader";
 import { card, colors, primaryButton } from "../../styles/common";
 import { Package, Plus, Pencil, Trash2, Search, ImageOff, Camera, X } from "lucide-react";
@@ -13,6 +14,10 @@ function Products() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Maps productId -> its currently applied promotion (if any), so each
+  // card can show a struck-through old price + the discounted new price.
+  const [activePromotions, setActivePromotions] = useState<Map<number, Promotion>>(new Map());
 
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -28,6 +33,7 @@ function Products() {
 
   useEffect(() => {
     void loadProducts();
+    void loadPromotions();
   }, []);
 
   // Close on Escape + lock background scroll while the modal is open
@@ -54,6 +60,22 @@ function Products() {
       console.error("Error loading admin products:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadPromotions() {
+    try {
+      const response = await api.get("/promotions");
+      const promotions: Promotion[] = response.data;
+      const map = new Map<number, Promotion>();
+      for (const promo of promotions) {
+        if (promo.applied && promo.product) {
+          map.set(promo.product.id, promo);
+        }
+      }
+      setActivePromotions(map);
+    } catch (error) {
+      console.error("Error loading promotions:", error);
     }
   }
 
@@ -179,7 +201,9 @@ function Products() {
             gap: 20,
           }}
         >
-          {filteredProducts.map((product) => (
+          {filteredProducts.map((product) => {
+            const promotion = activePromotions.get(product.id);
+            return (
             <div
               key={product.id}
               style={{
@@ -252,9 +276,32 @@ function Products() {
                 <div style={{ fontSize: 11, color: colors.textMuted, marginBottom: 10 }}>
                   ID #{product.id}
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: colors.accentDark, marginBottom: 14 }}>
-                  {product.price} DT
-                </div>
+                {promotion ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, color: colors.textMuted, textDecoration: "line-through" }}>
+                      {promotion.originalPrice} DT
+                    </span>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: colors.accentDark }}>
+                      {product.price} DT
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#fff",
+                        backgroundColor: colors.danger,
+                        padding: "2px 7px",
+                        borderRadius: 999,
+                      }}
+                    >
+                      -{promotion.discountPercentage}%
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 18, fontWeight: 700, color: colors.accentDark, marginBottom: 14 }}>
+                    {product.price} DT
+                  </div>
+                )}
 
                 <div style={{ marginTop: "auto", display: "flex", gap: 8 }}>
                   <button onClick={() => openEditModal(product)} style={editButtonStyle}>
@@ -272,7 +319,8 @@ function Products() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { UtensilsCrossed, Plus, Minus, ShoppingCart, Search } from "lucide-react";
 import api from "../../services/api";
 import type { Product } from "../../types/Product";
+import type { Promotion } from "../../types/Promotion";
 import { useTicket } from "../../context/TicketContext";
 import PageHeader from "../../components/PageHeader";
 import { colors } from "../../styles/common";
@@ -17,8 +18,13 @@ function ProductMenu() {
   const { items, addProduct, incrementItem, decrementItem, totalItems, totalAmount } =
     useTicket();
 
+  // Maps productId -> its currently applied promotion (if any), so the
+  // menu can show a struck-through old price + the discounted new price.
+  const [activePromotions, setActivePromotions] = useState<Map<number, Promotion>>(new Map());
+
   useEffect(() => {
     loadProducts();
+    loadPromotions();
   }, []);
 
   async function loadProducts() {
@@ -32,14 +38,56 @@ function ProductMenu() {
     }
   }
 
+  async function loadPromotions() {
+    try {
+      const response = await api.get("/promotions");
+      const promotions: Promotion[] = response.data;
+      const map = new Map<number, Promotion>();
+      for (const promo of promotions) {
+        // Only "applied" promotions actually reflect the current product
+        // price — planned/expired-but-unreverted ones are ignored here.
+        if (promo.applied && promo.product) {
+          map.set(promo.product.id, promo);
+        }
+      }
+      setActivePromotions(map);
+    } catch (error) {
+      console.error("Error loading promotions:", error);
+    }
+  }
+
   const categories = useMemo(() => {
     const set = new Set(products.map((p) => p.category));
     return ["Tous", ...Array.from(set)];
   }, [products]);
 
+  function isPromoActiveToday(promotion: Promotion): boolean {
+    const now = new Date();
+    return (
+      promotion.applied &&
+      now >= new Date(promotion.startDate) &&
+      now <= new Date(promotion.endDate)
+    );
+  }
+
+  const promoCount = useMemo(
+    () =>
+      products.filter((p) => {
+        const promo = activePromotions.get(p.id);
+        return promo && isPromoActiveToday(promo);
+      }).length,
+    [products, activePromotions]
+  );
+
   const filteredProducts = products.filter((p) => {
-    const matchesCategory = activeCategory === "Tous" || p.category === activeCategory;
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+
+    if (activeCategory === "PROMO") {
+      const promo = activePromotions.get(p.id);
+      return matchesSearch && !!promo && isPromoActiveToday(promo);
+    }
+
+    const matchesCategory = activeCategory === "Tous" || p.category === activeCategory;
     return matchesCategory && matchesSearch;
   });
 
@@ -88,6 +136,27 @@ function ProductMenu() {
         </div>
 
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          {promoCount > 0 && (
+            <button
+              onClick={() => setActiveCategory(activeCategory === "PROMO" ? "Tous" : "PROMO")}
+              style={{
+                padding: "8px 18px",
+                borderRadius: "999px",
+                border: activeCategory === "PROMO" ? "none" : `1px solid ${colors.danger}`,
+                backgroundColor: activeCategory === "PROMO" ? colors.danger : "#fff",
+                color: activeCategory === "PROMO" ? "#fff" : colors.danger,
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              🔥 Today's Promo ({promoCount})
+            </button>
+          )}
           {categories.map((cat) => {
             const isActive = activeCategory === cat;
             return (
@@ -137,6 +206,7 @@ function ProductMenu() {
         >
           {filteredProducts.map((product) => {
             const qty = quantityInCart(product.id);
+            const promotion = activePromotions.get(product.id);
             return (
               <div
                 key={product.id}
@@ -250,16 +320,45 @@ function ProductMenu() {
                   >
                     {product.name}
                   </div>
-                  <div
-                    style={{
-                      fontSize: "18px",
-                      fontWeight: 700,
-                      color: colors.accentDark,
-                      marginBottom: "14px",
-                    }}
-                  >
-                    {product.price} DT
-                  </div>
+                  {promotion ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "14px", flexWrap: "wrap" }}>
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          color: colors.textMuted,
+                          textDecoration: "line-through",
+                        }}
+                      >
+                        {promotion.originalPrice} DT
+                      </span>
+                      <span style={{ fontSize: "18px", fontWeight: 700, color: colors.accentDark }}>
+                        {product.price} DT
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#fff",
+                          backgroundColor: colors.danger,
+                          padding: "2px 7px",
+                          borderRadius: "999px",
+                        }}
+                      >
+                        -{promotion.discountPercentage}%
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        fontSize: "18px",
+                        fontWeight: 700,
+                        color: colors.accentDark,
+                        marginBottom: "14px",
+                      }}
+                    >
+                      {product.price} DT
+                    </div>
+                  )}
 
                   <div style={{ marginTop: "auto" }}>
                     {qty === 0 ? (
