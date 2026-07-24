@@ -18,26 +18,29 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 export class SalesTicketController {
   constructor(private readonly salesTicketService: SalesTicketService) {}
 
- @UseGuards(JwtAuthGuard)
-@Post()
-create(
-  @Body() createSalesTicketDto: CreateSalesTicketDto,
-  @Request() req,
-) {
-  return this.salesTicketService.create(
-    createSalesTicketDto,
-    req.user.id,
-  );
-}
-
-  @Get()
-  findAll() {
-    return this.salesTicketService.findAll();
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  create(
+    @Body() createSalesTicketDto: CreateSalesTicketDto,
+    @Request() req,
+  ) {
+    return this.salesTicketService.create(
+      createSalesTicketDto,
+      req.user.id,
+    );
   }
 
+  // Franchise accounts only ever see their own tickets; Admin sees everyone's.
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  findAll(@Request() req) {
+    return this.salesTicketService.findAllForUser(req.user.id, req.user.role);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.salesTicketService.findOne(+id);
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.salesTicketService.findOneForUser(+id, req.user.id, req.user.role);
   }
 
   @Patch(':id')

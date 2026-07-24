@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SalesTicket } from './entities/sales-ticket.entity';
@@ -13,14 +13,12 @@ export class SalesTicketService {
     private readonly salesTicketRepository: Repository<SalesTicket>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    
   ) {}
 
-    async create(
-  createSalesTicketDto: CreateSalesTicketDto,
-  userId: number,
-): Promise<SalesTicket> {
-
+  async create(
+    createSalesTicketDto: CreateSalesTicketDto,
+    userId: number,
+  ): Promise<SalesTicket> {
     // Find the franchise
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -54,6 +52,41 @@ export class SalesTicketService {
     });
 
     return await this.salesTicketRepository.save(salesTicket);
+  }
+
+  /**
+   * Admins see every ticket across all franchises. Franchise accounts only
+   * ever see tickets tied to their own user id — enforced here, at the
+   * query level, not just hidden in the UI.
+   */
+  async findAllForUser(userId: number, role: string): Promise<SalesTicket[]> {
+    const isAdmin = role === 'ADMIN';
+
+    return this.salesTicketRepository.find({
+      where: isAdmin ? {} : { user: { id: userId } },
+      relations: {
+        user: true,
+        items: {
+          product: true,
+        },
+      },
+      order: { saleDate: 'DESC' },
+    });
+  }
+
+  /**
+   * Same scoping rule as findAllForUser, but for a single ticket by id —
+   * a franchise trying to fetch someone else's ticket id gets a 403, not
+   * the ticket's data.
+   */
+  async findOneForUser(id: number, userId: number, role: string): Promise<SalesTicket> {
+    const ticket = await this.findOne(id);
+
+    if (role !== 'ADMIN' && ticket.user.id !== userId) {
+      throw new ForbiddenException('You do not have access to this ticket.');
+    }
+
+    return ticket;
   }
 
   async findAll(): Promise<SalesTicket[]> {
