@@ -22,11 +22,15 @@ import type { Product } from "../../types/Product";
 
 type Status = "upcoming" | "active" | "expired";
 
-// Shape for the future "recommend promotions for tomorrow" feature.
-// Adjust once the real endpoint/response is defined.
+// Shape returned by GET /predictions/promotion-suggestions.
 type SuggestedPromotion = {
   productId: number;
   productName: string;
+  category: string;
+  currentPrice: number;
+  predictedQuantity: number;
+  baselineQuantity: number;
+  dropPercent: number;
   suggestedDiscount: number;
   reason: string;
 };
@@ -259,21 +263,34 @@ function Promotions() {
     }
   }
 
-  // TODO: wire this up once the "recommend promotions for tomorrow" endpoint
-  // exists (e.g. GET/POST /promotions/suggestions or similar, likely backed
-  // by sales-predictions). For now this just simulates the call so the UI
-  // below is ready to go the moment the real endpoint lands.
+  // Model 3 — recommendations derived from tomorrow's per-product demand
+  // predictions (Model 2), for products expected to sell notably below
+  // their own average tomorrow.
   async function loadSuggestions() {
     setSuggestionsLoading(true);
     try {
-      // const response = await api.get("/promotions/suggestions");
-      // setSuggestions(response.data);
-      setSuggestions([]); // placeholder — replace with the line above
+      const response = await api.get("/predictions/promotion-suggestions");
+      setSuggestions(response.data);
     } catch (error) {
       console.error("Error loading promotion suggestions:", error);
     } finally {
       setSuggestionsLoading(false);
     }
+  }
+
+  /** Pre-fills the "Add Promotion" modal from a suggestion, one click away
+   * from actually creating it — the admin still reviews before saving. */
+  function createFromSuggestion(suggestion: SuggestedPromotion) {
+    const today = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+    setNewProductId(String(suggestion.productId));
+    setNewDiscount(String(suggestion.suggestedDiscount));
+    setNewReason(suggestion.reason);
+    setNewStartDate(today);
+    setNewEndDate(tomorrow);
+    setSaveError("");
+    setShowAddModal(true);
   }
 
   const withStatus = useMemo(
@@ -350,7 +367,7 @@ function Promotions() {
             <div>
               <h3 style={{ margin: 0 }}>Suggested Promotions for Tomorrow</h3>
               <p style={suggestSubtitle}>
-                Recommendations based on predicted sales. Coming soon.
+                Recommendations based on tomorrow's predicted demand per product.
               </p>
             </div>
           </div>
@@ -362,7 +379,6 @@ function Promotions() {
             }}
             onClick={loadSuggestions}
             disabled={suggestionsLoading}
-            title="Not wired up yet"
           >
             {suggestionsLoading ? (
               <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} />
@@ -373,23 +389,37 @@ function Promotions() {
           </button>
         </div>
 
-        {suggestions && suggestions.length > 0 ? (
+        {suggestions === null ? (
+          <p style={suggestEmptyHint}>
+            Click "Get suggestions" to see which products are predicted to sell below
+            average tomorrow, based on the demand model.
+          </p>
+        ) : suggestions.length > 0 ? (
           <div style={suggestResultBox}>
             {suggestions.map((s) => (
               <div key={s.productId} style={suggestRow}>
-                <span style={{ fontWeight: 600, color: colors.dark }}>{s.productName}</span>
-                <span style={discountPill}>
-                  <Percent size={12} />
-                  {s.suggestedDiscount}%
-                </span>
-                <span style={{ color: colors.textMuted, fontSize: 13 }}>{s.reason}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", flex: 1 }}>
+                  <span style={{ fontWeight: 600, color: colors.dark }}>{s.productName}</span>
+                  <span style={discountPill}>
+                    <Percent size={12} />
+                    -{s.suggestedDiscount}%
+                  </span>
+                  <span style={{ color: colors.textMuted, fontSize: 13 }}>{s.reason}</span>
+                </div>
+                <button
+                  onClick={() => createFromSuggestion(s)}
+                  style={createFromSuggestionButtonStyle}
+                >
+                  <Plus size={13} />
+                  Create Promotion
+                </button>
               </div>
             ))}
           </div>
         ) : (
           <p style={suggestEmptyHint}>
-            This section will suggest which products to discount tomorrow based on predicted
-            sales, once connected to the predictions engine.
+            No product is predicted to underperform enough tomorrow to warrant a promotion —
+            nothing to suggest right now.
           </p>
         )}
       </div>
@@ -1024,8 +1054,25 @@ const suggestResultBox: React.CSSProperties = {
 const suggestRow: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
+  justifyContent: "space-between",
   gap: 12,
   fontSize: 14,
+  flexWrap: "wrap",
+};
+
+const createFromSuggestionButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "7px 12px",
+  borderRadius: 8,
+  border: "none",
+  background: colors.dark,
+  color: "#fff",
+  fontWeight: 600,
+  fontSize: 12,
+  cursor: "pointer",
+  flexShrink: 0,
 };
 
 /* --- Apply/Revert button styles --- */

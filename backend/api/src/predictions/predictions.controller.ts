@@ -24,6 +24,12 @@ export class PredictionsController {
     return this.demandPredictionService.getOrGenerateTomorrow(force === 'true');
   }
 
+  // Model 3 — promotion recommendations derived from Model 2's predictions
+  @Get('promotion-suggestions')
+  async getPromotionSuggestions() {
+    return this.demandPredictionService.suggestPromotions();
+  }
+
   // Manually trigger the Python model retraining (normally runs
   // automatically every night at 3 AM via the scheduled task).
   @Post('train-now')

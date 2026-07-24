@@ -56,6 +56,12 @@ const DEFAULT_QUANTITY_BY_CATEGORY: Record<string, number> = {
 };
 const DEFAULT_QUANTITY_FALLBACK = 12;
 
+// Only suggest a promotion if tomorrow's predicted demand is at least this
+// much lower than the product's historical daily average.
+const MIN_DROP_PERCENT_FOR_SUGGESTION = 30;
+const MIN_SUGGESTED_DISCOUNT = 10;
+const MAX_SUGGESTED_DISCOUNT = 40;
+
 export interface ProductPredictionResult {
   productId: number;
   productName: string;
@@ -65,6 +71,18 @@ export interface ProductPredictionResult {
   confidence: number;
   insufficientData: boolean;
   method: 'ml' | 'heuristic';
+}
+
+export interface PromotionSuggestion {
+  productId: number;
+  productName: string;
+  category: string;
+  currentPrice: number;
+  predictedQuantity: number;
+  baselineQuantity: number;
+  dropPercent: number;
+  suggestedDiscount: number;
+  reason: string;
 }
 
 @Injectable()
@@ -115,6 +133,60 @@ export class DemandPredictionService {
     }
 
     return this.generateTomorrowPredictions(tomorrow);
+  }
+
+  /**
+   * Model 3 — turns tomorrow's per-product demand predictions (Model 2)
+   * into promotion recommendations. Only suggests a discount when
+   * predicted demand is significantly below the product's own historical
+   * average — the idea being: move stock that's expected to sell poorly
+   * tomorrow, rather than guessing at "popular" products to discount.
+   */
+  async suggestPromotions(): Promise<PromotionSuggestion[]> {
+    const predictions = await this.getOrGenerateTomorrow();
+    const tomorrow = this.getTomorrowDateString();
+    const weather = await this.weatherApiService.getOrCreateWeatherForDate(tomorrow);
+
+    const suggestions: PromotionSuggestion[] = [];
+
+    for (const prediction of predictions) {
+      // Products with no real sales history yet have nothing meaningful to
+      // compare against — skip rather than suggest based on a guessed default.
+      if (prediction.insufficientData) continue;
+
+      const { avgQuantityPerDay: baselineQuantity } = await this.computeProductBaseline(
+        prediction.productId,
+      );
+      if (baselineQuantity <= 0) continue;
+
+      const dropPercent = Math.round((1 - prediction.predictedQuantity / baselineQuantity) * 100);
+      if (dropPercent < MIN_DROP_PERCENT_FOR_SUGGESTION) continue;
+
+      const product = await this.productRepository.findOne({
+        where: { id: prediction.productId },
+      });
+      if (!product) continue;
+
+      const suggestedDiscount = Math.min(
+        MAX_SUGGESTED_DISCOUNT,
+        Math.max(MIN_SUGGESTED_DISCOUNT, Math.round(dropPercent / 2)),
+      );
+
+      suggestions.push({
+        productId: prediction.productId,
+        productName: prediction.productName,
+        category: prediction.category,
+        currentPrice: Number(product.price),
+        predictedQuantity: prediction.predictedQuantity,
+        baselineQuantity: Math.round(baselineQuantity * 10) / 10,
+        dropPercent,
+        suggestedDiscount,
+        reason: `Predicted demand is ${dropPercent}% below this product's average (${prediction.predictedQuantity} vs ~${Math.round(baselineQuantity)}/day) due to ${weather.weatherCondition} weather tomorrow.`,
+      });
+    }
+
+    // Biggest expected drop first — the products that need the most help.
+    return suggestions.sort((a, b) => b.dropPercent - a.dropPercent);
   }
 
   private async generateTomorrowPredictions(
