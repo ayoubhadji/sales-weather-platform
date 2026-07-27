@@ -72,6 +72,8 @@ function NewTicket() {
 
   return (
     <div>
+      <style>{receiptStyles}</style>
+
       <PageHeader
         icon={Receipt}
         title="Nouveau ticket"
@@ -166,6 +168,87 @@ function NewTicket() {
           </button>
         </div>
       </div>
+
+      <CartReceiptPreview items={items} totalAmount={totalAmount} />
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Small live receipt preview — mirrors the paper-receipt look used for       */
+/* confirmed tickets, but marked as a draft since nothing's submitted yet.    */
+/* -------------------------------------------------------------------------- */
+
+function CartReceiptPreview({
+  items,
+  totalAmount,
+}: {
+  items: { product: { name: string; price: number | string }; quantity: number }[];
+  totalAmount: number;
+}) {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", padding: "24px 16px 4px" }}>
+      <div className="receipt-paper receipt-paper-sm">
+        <div className="receipt-jagged receipt-jagged-top" />
+
+        <div className="receipt-body receipt-body-sm">
+          <div style={{ textAlign: "center", marginBottom: 8 }}>
+            <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: "0.06em" }}>
+              SALES WEATHER
+            </div>
+            <div style={{ fontSize: 9, color: "#94a3b8", letterSpacing: "0.08em" }}>
+              PREVIEW — NOT YET SUBMITTED
+            </div>
+          </div>
+
+          <div className="receipt-dashed" />
+
+          <div style={{ fontSize: 11, marginBottom: 8, color: "#64748b" }}>
+            {new Date().toLocaleString()}
+          </div>
+
+          <div className="receipt-dashed" />
+
+          <div style={{ margin: "8px 0" }}>
+            {items.map(({ product, quantity }) => (
+              <div key={product.name} style={{ marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "baseline", fontSize: 11 }}>
+                  <span style={{ whiteSpace: "nowrap" }}>
+                    {product.name} x{quantity}
+                  </span>
+                  <span className="receipt-leader" />
+                  <span style={{ whiteSpace: "nowrap", fontWeight: 700 }}>
+                    {(Number(product.price) * quantity).toFixed(2)} DT
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="receipt-dashed" />
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 13,
+              fontWeight: 800,
+              margin: "8px 0",
+            }}
+          >
+            <span>TOTAL</span>
+            <span>{totalAmount.toFixed(2)} DT</span>
+          </div>
+
+          <div className="receipt-dashed" />
+
+          <div style={{ textAlign: "center", marginTop: 10, fontSize: 10, color: "#94a3b8" }}>
+            Ce ticket sera genere apres validation
+          </div>
+        </div>
+
+        <div className="receipt-jagged receipt-jagged-bottom" />
+      </div>
     </div>
   );
 }
@@ -180,5 +263,53 @@ const stepperButtonStyle = {
   justifyContent: "center",
   padding: "4px",
 };
+
+const receiptStyles = `
+.receipt-paper {
+  width: 100%;
+  max-width: 320px;
+  position: relative;
+  filter: drop-shadow(0 8px 16px rgba(15,23,42,0.12));
+}
+.receipt-paper-sm {
+  max-width: 240px;
+}
+.receipt-body {
+  background: #fffef8;
+  padding: 22px 20px;
+  font-family: 'Courier New', Courier, monospace;
+  color: #1e293b;
+}
+.receipt-body-sm {
+  padding: 16px 14px;
+}
+.receipt-jagged {
+  height: 10px;
+  background-image:
+    linear-gradient(135deg, #eef2f6 50%, transparent 50%),
+    linear-gradient(45deg, #eef2f6 50%, transparent 50%);
+  background-size: 14px 14px;
+  background-repeat: repeat-x;
+}
+.receipt-jagged-top {
+  background-color: #fffef8;
+  background-position: bottom;
+}
+.receipt-jagged-bottom {
+  background-color: #fffef8;
+  background-position: top;
+  transform: scaleY(-1);
+}
+.receipt-dashed {
+  border-top: 1px dashed #cbd5e1;
+  margin: 8px 0;
+}
+.receipt-leader {
+  flex: 1;
+  margin: 0 6px;
+  border-bottom: 1px dotted #94a3b8;
+  transform: translateY(-3px);
+}
+`;
 
 export default NewTicket;
