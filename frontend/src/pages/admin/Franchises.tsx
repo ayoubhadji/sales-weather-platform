@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import api from "../../services/api";
-import type { User } from "../../types/User";
 import type { FranchiseStats } from "../../types/FranchiseStats";
 import ModalEditFranchise from "../../components/ModalEditFranchise";
 import ModalAddFranchise from "../../components/ModalAddFranchise";
@@ -214,14 +213,5 @@ const addButtonStyle: React.CSSProperties = {
   transition: "0.2s",
 };
 
-const deleteButtonStyle: React.CSSProperties = {
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: "1px solid #ef4444",
-  background: "#ef4444",
-  color: "#fff",
-  cursor: "pointer",
-  fontWeight: 600,
-};
 
 export default Franchises;

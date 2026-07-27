@@ -541,7 +541,7 @@ function SunRays() {
 function DriftingClouds({ count, muted }: { count: number; muted?: boolean }) {
   const clouds = useMemo(
     () =>
-      Array.from({ length: count }).map((_, i) => ({
+      Array.from({ length: count }).map((_, ) => ({
         top: 10 + Math.random() * 60,
         scale: 0.7 + Math.random() * 0.8,
         duration: 30 + Math.random() * 30,

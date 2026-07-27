@@ -4,7 +4,6 @@ import {
   CloudSun,
   Sun,
   Cloud,
-  TrendingUp,
   Receipt,
   Tag,
   Store,
