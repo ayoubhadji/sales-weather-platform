@@ -18,20 +18,12 @@ import {
   Wind,
 } from "lucide-react";
 
-/* -------------------------------------------------------------------------- */
-/* Signature palette — scoped to this page only. Everything else in the app  */
-/* keeps using styles/common so the rest of the UI stays consistent; this    */
-/* file just introduces a bolder accent set for the dashboard's hero moment. */
-/* -------------------------------------------------------------------------- */
 const INK = "#12172B";
 const INK_SOFT = "#1C2340";
 const COPPER = "#C4622D";
 const SKY = "#5B9BC7";
 const SIGNAL = "#5FA777";
 
-/* -------------------------------------------------------------------------- */
-/* Count-up hook — animates a number from 0 to its target value               */
-/* -------------------------------------------------------------------------- */
 function useCountUp(target: number, durationMs = 900) {
   const [value, setValue] = useState(0);
   const startRef = useRef<number | null>(null);
@@ -68,6 +60,13 @@ function getTodayLabel() {
     .toUpperCase();
 }
 
+// A promotion counts as "active" only if today falls within its date range —
+// not just "happened to be among the first few returned by the API".
+function isPromotionActive(promotion: Promotion): boolean {
+  const now = new Date();
+  return now >= new Date(promotion.startDate) && now <= new Date(promotion.endDate);
+}
+
 function Dashboard() {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
@@ -102,9 +101,13 @@ function Dashboard() {
   }
 
   const totalRevenue = tickets.reduce((sum, ticket) => sum + Number(ticket.totalAmount), 0);
-  const latestWeather = weather[0];
+
+  const latestWeather = [...weather].sort(
+    (a, b) => new Date(b.weatherDate).getTime() - new Date(a.weatherDate).getTime()
+  )[0];
+
   const latestTickets = tickets.slice(0, 5);
-  const activePromotions = promotions.slice(0, 3);
+  const activePromotions = promotions.filter(isPromotionActive).slice(0, 3);
 
   const trend = tickets.slice(0, 8).reverse().map((t) => Number(t.totalAmount));
   const trendMax = Math.max(...trend, 1);
@@ -112,7 +115,7 @@ function Dashboard() {
   const productsCount = useCountUp(loading ? 0 : products.length);
   const ticketsCount = useCountUp(loading ? 0 : tickets.length);
   const revenueCount = useCountUp(loading ? 0 : totalRevenue);
-  const promotionsCount = useCountUp(loading ? 0 : promotions.length);
+  const promotionsCount = useCountUp(loading ? 0 : activePromotions.length);
 
   return (
     <div>
@@ -138,7 +141,7 @@ function Dashboard() {
           <div style={statsGrid}>
             <StatTicker icon={Package} label="Products" value={Math.round(productsCount)} accent={COPPER} delay={0} />
             <StatTicker icon={Receipt} label="Tickets" value={Math.round(ticketsCount)} accent={SKY} delay={80} />
-            <StatTicker icon={Tag} label="Promotions" value={Math.round(promotionsCount)} accent={SIGNAL} delay={160} />
+            <StatTicker icon={Tag} label="Active Promotions" value={Math.round(promotionsCount)} accent={SIGNAL} delay={160} />
             <StatTicker
               icon={ShoppingCart}
               label="Avg. ticket"
@@ -205,7 +208,7 @@ function Dashboard() {
                   ))}
                 </div>
               ) : (
-                <p style={{ color: colors.textMuted }}>No promotions found.</p>
+                <p style={{ color: colors.textMuted }}>No active promotions right now.</p>
               )}
               <HoverLink to="/franchise/menu" color={SIGNAL}>Open menu</HoverLink>
             </section>
@@ -227,10 +230,6 @@ function Dashboard() {
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Hero — the signature element: weather + revenue read as one instrument     */
-/* -------------------------------------------------------------------------- */
 
 function ConditionsHero({
   userName,
@@ -266,7 +265,6 @@ function ConditionsHero({
       </div>
 
       <div style={heroSplit}>
-        {/* Weather dial */}
         <div style={heroCol}>
           <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
             <div style={{ position: "relative", width: 76, height: 76, flexShrink: 0 }}>
@@ -307,7 +305,6 @@ function ConditionsHero({
 
         <div style={heroVerticalDivider} />
 
-        {/* Revenue ticker */}
         <div style={heroCol}>
           <div style={heroEyebrowSmall}>REVENUE TODAY</div>
           <div style={heroRevenue}>
@@ -357,10 +354,6 @@ function HeroTick({
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Sub-components                                                             */
-/* -------------------------------------------------------------------------- */
 
 function StatTicker({
   icon: Icon,
@@ -508,10 +501,6 @@ function SkeletonGrid() {
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Styles                                                                      */
-/* -------------------------------------------------------------------------- */
 
 const heroPanel: React.CSSProperties = {
   position: "relative",
