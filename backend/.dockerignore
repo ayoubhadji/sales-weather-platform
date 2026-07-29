@@ -6,3 +6,4 @@ Dockerfile
 .dockerignore
 coverage
 .env
+npm-debug.log

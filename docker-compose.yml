@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123
-      POSTGRES_DB: sales_weather
+      POSTGRES_DB: sales_weather_db
     ports:
       - "5432:5432"
     volumes:
@@ -24,6 +24,8 @@ services:
       - "3000:3000"
     env_file:
       - ./backend/api/.env
+    volumes:
+      - ./backend/api/uploads:/app/uploads
 
   frontend:
     build:
