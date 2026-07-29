@@ -25,5 +25,13 @@ services:
     env_file:
       - ./backend/api/.env
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: sales-weather-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
 volumes:
   postgres_data:
