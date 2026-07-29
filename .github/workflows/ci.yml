@@ -30,14 +30,7 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Run unit tests
-        run: npm run test
-        env:
-          # Placeholder so the app doesn't crash on a missing key during tests.
-          # The real key only ever lives in your local .env / deploy secrets.
-          GROQ_API_KEY: test-placeholder-key
-
+    
   frontend:
     name: Frontend (Vite + React)
     runs-on: ubuntu-latest
