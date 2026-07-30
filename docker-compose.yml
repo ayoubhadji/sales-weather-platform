@@ -24,9 +24,21 @@ services:
       - "3000:3000"
     env_file:
       - ./backend/api/.env
+    environment:
+      PYTHON_ML_URL: http://ml:8000
     volumes:
       - ./backend/api/uploads:/app/uploads
 
+  ml:
+    build:
+      context: ./ml
+    container_name: sales-weather-ml
+    depends_on:
+      - backend
+    environment:
+      NESTJS_BASE_URL: http://backend:3000
+    ports:
+      - "8000:8000"
   frontend:
     build:
       context: ./frontend
