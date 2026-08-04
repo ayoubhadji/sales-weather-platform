@@ -13,11 +13,9 @@ import {
   CloudFog,
   Sparkles,
   CheckCircle2,
+  CalendarRange,
 } from "lucide-react";
 
-/* -------------------------------------------------------------------------- */
-/* Weather -> visual theme mapping                                            */
-/* -------------------------------------------------------------------------- */
 type ThemeKey = "sunny" | "cloudy" | "rainy" | "stormy" | "foggy";
 
 interface WeatherTheme {
@@ -72,7 +70,6 @@ function getWeatherTheme(condition?: string): WeatherTheme {
       icon: Cloud,
     };
   }
-  // default: sunny / clear
   return {
     key: "sunny",
     gradient: "linear-gradient(135deg, #fbbf24 0%, #38bdf8 100%)",
@@ -83,14 +80,31 @@ function getWeatherTheme(condition?: string): WeatherTheme {
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Actual vs predicted                                                        */
-/* -------------------------------------------------------------------------- */
+interface ForecastEntry {
+  date: string;
+  maxTemperature: number;
+  minTemperature: number;
+  rainfall: number;
+  humidity: number;
+  windSpeed: number;
+  weatherCondition: string;
+}
 
-// Heuristic fallback: a date after today can't be a real recorded reading,
-// so treat it as a prediction. If your Weather entity/API already exposes an
-// explicit flag (e.g. `isPredicted` or `source`), swap this for that field —
-// it'll be more reliable than a date guess, especially for backfilled data.
+const FORECAST_RANGE_OPTIONS = [1, 3, 7] as const;
+type ForecastRange = (typeof FORECAST_RANGE_OPTIONS)[number];
+
+function forecastEntryToWeatherRow(entry: ForecastEntry, index: number): Weather {
+  return {
+    id: -1000 - index,
+    weatherDate: entry.date,
+    temperature: entry.maxTemperature,
+    humidity: entry.humidity,
+    rainfall: entry.rainfall,
+    windSpeed: entry.windSpeed,
+    weatherCondition: entry.weatherCondition as Weather["weatherCondition"],
+  };
+}
+
 function isPredicted(entry: Weather): boolean {
   const anyEntry = entry as any;
   if (typeof anyEntry.isPredicted === "boolean") return anyEntry.isPredicted;
@@ -132,8 +146,13 @@ function WeatherPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<"all" | "actual" | "predicted">("all");
 
+  const [forecastRange, setForecastRange] = useState<ForecastRange>(1);
+  const [forecast, setForecast] = useState<ForecastEntry[]>([]);
+  const [forecastLoading, setForecastLoading] = useState(false);
+
   useEffect(() => {
     void loadWeather();
+    void loadForecast();
   }, []);
 
   async function loadWeather() {
@@ -152,6 +171,18 @@ function WeatherPage() {
     }
   }
 
+  async function loadForecast() {
+    setForecastLoading(true);
+    try {
+      const response = await api.get("/weather/forecast");
+      setForecast(response.data);
+    } catch (error) {
+      console.error("Error loading weather forecast:", error);
+    } finally {
+      setForecastLoading(false);
+    }
+  }
+
   async function refreshCurrentWeather() {
     setRefreshing(true);
     try {
@@ -167,16 +198,39 @@ function WeatherPage() {
 
   const theme = getWeatherTheme(currentWeather?.weatherCondition);
 
+  const combinedWeather = useMemo(() => {
+    const existingDates = new Set(weather.map((w) => w.weatherDate));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const forecastRows = forecast
+      .filter((entry) => {
+        const entryDate = new Date(entry.date);
+        entryDate.setHours(0, 0, 0, 0);
+        const dayDiff = Math.round((entryDate.getTime() - today.getTime()) / 86400000);
+        return dayDiff >= 1 && dayDiff <= forecastRange && !existingDates.has(entry.date);
+      })
+      .map(forecastEntryToWeatherRow);
+
+    return [...weather, ...forecastRows];
+  }, [weather, forecast, forecastRange]);
+
   const sortedWeather = useMemo(
     () =>
-      [...weather].sort(
+      [...combinedWeather].sort(
         (a, b) => new Date(b.weatherDate).getTime() - new Date(a.weatherDate).getTime(),
       ),
-    [weather],
+    [combinedWeather],
   );
 
-  const actualCount = useMemo(() => weather.filter((w) => !isPredicted(w)).length, [weather]);
-  const predictedCount = useMemo(() => weather.filter((w) => isPredicted(w)).length, [weather]);
+  const actualCount = useMemo(
+    () => combinedWeather.filter((w) => !isPredicted(w)).length,
+    [combinedWeather],
+  );
+  const predictedCount = useMemo(
+    () => combinedWeather.filter((w) => isPredicted(w)).length,
+    [combinedWeather],
+  );
 
   const filteredWeather = useMemo(() => {
     if (sourceFilter === "all") return sortedWeather;
@@ -213,7 +267,7 @@ function WeatherPage() {
               <div style={filterChips}>
                 <FilterChip
                   label="All"
-                  count={weather.length}
+                  count={combinedWeather.length}
                   color={colors.dark}
                   active={sourceFilter === "all"}
                   onClick={() => setSourceFilter("all")}
@@ -235,6 +289,30 @@ function WeatherPage() {
                   }
                 />
               </div>
+            </div>
+
+            <div style={forecastRangeRow}>
+              <span style={forecastRangeLabel}>
+                <CalendarRange size={14} />
+                Show forecast for:
+              </span>
+              <div style={forecastRangeChips}>
+                {FORECAST_RANGE_OPTIONS.map((days) => (
+                  <button
+                    key={days}
+                    onClick={() => setForecastRange(days)}
+                    style={{
+                      ...forecastRangeChip,
+                      ...(forecastRange === days ? forecastRangeChipActive : {}),
+                    }}
+                  >
+                    {days === 1 ? "Tomorrow" : `Next ${days} days`}
+                  </button>
+                ))}
+              </div>
+              {forecastLoading && (
+                <span style={{ fontSize: 12, color: colors.textMuted }}>Loading forecast…</span>
+              )}
             </div>
 
             {filteredWeather.length === 0 ? (
@@ -381,10 +459,6 @@ function ConditionBadge({ condition, theme }: { condition: string; theme: Weathe
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Animated hero banner                                                       */
-/* -------------------------------------------------------------------------- */
-
 function WeatherHero({
   theme,
   currentWeather,
@@ -410,7 +484,6 @@ function WeatherHero({
         transition: "background 0.6s ease",
       }}
     >
-      {/* Decorative animated layer, behind content */}
       <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
         {theme.key === "sunny" && <SunRays />}
         {theme.key === "cloudy" && <DriftingClouds count={4} />}
@@ -430,7 +503,6 @@ function WeatherHero({
         {theme.key === "foggy" && <FogLayers />}
       </div>
 
-      {/* Content, above the animated layer */}
       <div style={{ position: "relative", zIndex: 2 }}>
         <div
           style={{
@@ -515,10 +587,6 @@ function GlassMetric({ label, value, theme }: { label: string; value: string; th
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Decorative animations                                                      */
-/* -------------------------------------------------------------------------- */
-
 function SunRays() {
   return (
     <div
@@ -541,7 +609,7 @@ function SunRays() {
 function DriftingClouds({ count, muted }: { count: number; muted?: boolean }) {
   const clouds = useMemo(
     () =>
-      Array.from({ length: count }).map((_, ) => ({
+      Array.from({ length: count }).map(() => ({
         top: 10 + Math.random() * 60,
         scale: 0.7 + Math.random() * 0.8,
         duration: 30 + Math.random() * 30,
@@ -650,10 +718,6 @@ function FogLayers() {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Styles                                                                      */
-/* -------------------------------------------------------------------------- */
-
 const historyHeader: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -666,6 +730,50 @@ const filterChips: React.CSSProperties = {
   display: "flex",
   gap: 8,
   flexWrap: "wrap",
+};
+
+const forecastRangeRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  flexWrap: "wrap",
+  marginTop: 16,
+  paddingTop: 16,
+  borderTop: `1px solid ${colors.border}`,
+};
+
+const forecastRangeLabel: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  fontSize: 13,
+  fontWeight: 600,
+  color: colors.textMuted,
+};
+
+const forecastRangeChips: React.CSSProperties = {
+  display: "inline-flex",
+  gap: 4,
+  padding: 4,
+  borderRadius: 10,
+  backgroundColor: "#f1f5f9",
+};
+
+const forecastRangeChip: React.CSSProperties = {
+  padding: "6px 12px",
+  borderRadius: 8,
+  border: "none",
+  background: "transparent",
+  color: colors.textMuted,
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const forecastRangeChipActive: React.CSSProperties = {
+  backgroundColor: "#fff",
+  color: colors.dark,
+  boxShadow: "0 1px 3px rgba(15,23,42,0.12)",
 };
 
 const metricsGrid: React.CSSProperties = {
