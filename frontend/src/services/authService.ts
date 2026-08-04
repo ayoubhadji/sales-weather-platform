@@ -3,6 +3,9 @@ import axios from "axios";
 // const API_URL = "http://localhost:3000/auth";
 const API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
+console.log("VITE_API_URL =", import.meta.env.VITE_API_URL);
+console.log("API_URL =", API_URL);
+
 export interface LoginRequest {
   email: string;
   password: string;
