@@ -1,4 +1,4 @@
-name: Sales Weather Platform CI
+name: Sales Weather Platform CI/CD
 
 on:
   push:
@@ -7,9 +7,14 @@ on:
     branches: [main, master]
 
 jobs:
+
+  # =========================
+  # BACKEND
+  # =========================
   backend:
-    name: Backend (NestJS)
+    name: Backend - NestJS
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: backend/api
@@ -21,19 +26,23 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: backend/api/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
+      - name: Build backend
         run: npm run build
-    
+
+  # =========================
+  # FRONTEND
+  # =========================
   frontend:
-    name: Frontend (Vite + React)
+    name: Frontend - React/Vite
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: frontend
@@ -45,12 +54,40 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
+      - name: Build frontend
         run: npm run build
+
+  # =========================
+  # DOCKER BACKEND
+  # =========================
+  docker:
+    name: Docker - Backend
+    runs-on: ubuntu-latest
+    needs: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ayoubhadji/sales-weather-backend:latest \
+            ./backend
+
+      - name: Push Docker image
+        run: |
+          docker push ayoubhadji/sales-weather-backend:latest
