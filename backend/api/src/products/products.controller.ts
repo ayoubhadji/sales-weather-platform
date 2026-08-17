@@ -57,54 +57,50 @@ export class ProductsController {
 
   // POST /products/upload
   @Post('upload')
-  @UseInterceptors(
-    FileInterceptor('file'),
-  )
-  async uploadProductImage(
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    if (!file) {
-      throw new InternalServerErrorException(
-        'No image file received',
-      );
-    }
+@UseInterceptors(FileInterceptor('file'))
+async uploadProductImage(
+  @UploadedFile() file: Express.Multer.File,
+) {
+  console.log("🔥 AZURE BLOB UPLOAD VERSION ACTIVE");
+  console.log("File:", file?.originalname);
 
-    try {
-      const containerClient =
-        this.getContainerClient();
-
-      // Generate unique blob name
-      const uniqueName =
-        Date.now() +
-        '-' +
-        Math.round(Math.random() * 1e9) +
-        extname(file.originalname);
-
-      // Get blob client
-      const blockBlobClient: BlockBlobClient =
-        containerClient.getBlockBlobClient(uniqueName);
-
-      // Upload image buffer to Azure Blob Storage
-      await blockBlobClient.uploadData(file.buffer, {
-        blobHTTPHeaders: {
-          blobContentType: file.mimetype,
-        },
-      });
-
-      return {
-        imageUrl: blockBlobClient.url,
-      };
-    } catch (error) {
-      console.error(
-        'Azure Blob upload error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Failed to upload image to Azure Blob Storage',
-      );
-    }
+  if (!file) {
+    throw new InternalServerErrorException(
+      'No image file received',
+    );
   }
+
+  try {
+    const containerClient = this.getContainerClient();
+
+    const uniqueName =
+      Date.now() +
+      '-' +
+      Math.round(Math.random() * 1e9) +
+      extname(file.originalname);
+
+    const blockBlobClient: BlockBlobClient =
+      containerClient.getBlockBlobClient(uniqueName);
+
+    await blockBlobClient.uploadData(file.buffer, {
+      blobHTTPHeaders: {
+        blobContentType: file.mimetype,
+      },
+    });
+
+    console.log("🔥 Uploaded to:", blockBlobClient.url);
+
+    return {
+      imageUrl: blockBlobClient.url,
+    };
+  } catch (error) {
+    console.error('Azure Blob upload error:', error);
+
+    throw new InternalServerErrorException(
+      'Failed to upload image to Azure Blob Storage',
+    );
+  }
+}
 
   // GET /products
   @Get()
