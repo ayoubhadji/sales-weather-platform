@@ -7,20 +7,47 @@ import {
   Param,
   Delete,
   ParseIntPipe,
-   UploadedFile,
+  UploadedFile,
   UseInterceptors,
+  InternalServerErrorException,
 } from '@nestjs/common';
 
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+
+import {
+  BlobServiceClient,
+  BlockBlobClient,
+} from '@azure/storage-blob';
+
 import { extname } from 'path';
 
 @Controller('products')
 export class ProductsController {
+  private readonly containerName = 'products';
+
   constructor(private readonly productsService: ProductsService) {}
+
+  // Azure Blob Storage client
+  private getContainerClient() {
+    const connectionString =
+      process.env.AZURE_STORAGE_CONNECTION_STRING;
+
+    if (!connectionString) {
+      throw new Error(
+        'AZURE_STORAGE_CONNECTION_STRING is not configured',
+      );
+    }
+
+    const blobServiceClient =
+      BlobServiceClient.fromConnectionString(connectionString);
+
+    return blobServiceClient.getContainerClient(
+      this.containerName,
+    );
+  }
 
   // POST /products
   @Post()
@@ -28,30 +55,55 @@ export class ProductsController {
     return this.productsService.create(createProductDto);
   }
 
+  // POST /products/upload
   @Post('upload')
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/products',
-
-        filename: (req, file, callback) => {
-          const uniqueName =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-
-          callback(
-            null,
-            uniqueName + extname(file.originalname),
-          );
-        },
-      }),
-    }),
+    FileInterceptor('file'),
   )
-  uploadProductImage(
+  async uploadProductImage(
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return {
-      imageUrl: `/uploads/products/${file.filename}`,
-    };
+    if (!file) {
+      throw new InternalServerErrorException(
+        'No image file received',
+      );
+    }
+
+    try {
+      const containerClient =
+        this.getContainerClient();
+
+      // Generate unique blob name
+      const uniqueName =
+        Date.now() +
+        '-' +
+        Math.round(Math.random() * 1e9) +
+        extname(file.originalname);
+
+      // Get blob client
+      const blockBlobClient: BlockBlobClient =
+        containerClient.getBlockBlobClient(uniqueName);
+
+      // Upload image buffer to Azure Blob Storage
+      await blockBlobClient.uploadData(file.buffer, {
+        blobHTTPHeaders: {
+          blobContentType: file.mimetype,
+        },
+      });
+
+      return {
+        imageUrl: blockBlobClient.url,
+      };
+    } catch (error) {
+      console.error(
+        'Azure Blob upload error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to upload image to Azure Blob Storage',
+      );
+    }
   }
 
   // GET /products
@@ -72,7 +124,10 @@ export class ProductsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProductDto: UpdateProductDto,
   ) {
-    return this.productsService.update(id, updateProductDto);
+    return this.productsService.update(
+      id,
+      updateProductDto,
+    );
   }
 
   // DELETE /products/1
