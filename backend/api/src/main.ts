@@ -8,11 +8,14 @@ import { join } from 'path';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-    prefix: '/uploads/',
-  });
-    // Enable requests from the React frontend
-    app.enableCors({
+  // Local upload files are no longer the source of truth. Products should use
+  // Azure Blob URLs, and stale /uploads entries should not be served anymore.
+  // app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+  //   prefix: '/uploads/',
+  // });
+
+  // Enable requests from the React frontend
+  app.enableCors({
       // origin: [
       //   'http://localhost:5173',
       //   'https://sales-weather-platform.vercel.app',

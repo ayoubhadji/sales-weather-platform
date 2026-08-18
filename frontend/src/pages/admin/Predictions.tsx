@@ -5,6 +5,7 @@ import type { Product } from "../../types/Product";
 import type { Weather } from "../../types/Weather";
 import PageHeader from "../../components/PageHeader";
 import { card, colors, table, th, td, badge } from "../../styles/common";
+import { getImageUrl } from "../../utils/imageUrl";
 import {
   CloudSun,
   Sun,
@@ -336,31 +337,35 @@ function Predictions() {
                 border: `1px solid ${colors.border}`,
               }}
             >
-              {selectedProduct.imageUrl ? (
-                <img
-                  src={`http://localhost:3000${selectedProduct.imageUrl}`}
-                  alt={selectedProduct.name}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    backgroundColor: "#f1f5f9",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: colors.textMuted,
-                  }}
-                >
-                  <ImageOff size={26} />
-                </div>
-              )}
+              {(() => {
+                const productImageUrl = getImageUrl(selectedProduct.imageUrl);
+
+                return productImageUrl ? (
+                  <img
+                    src={productImageUrl}
+                    alt={selectedProduct.name}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      backgroundColor: "#f1f5f9",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: colors.textMuted,
+                    }}
+                  >
+                    <ImageOff size={26} />
+                  </div>
+                );
+              })()}
             </div>
 
             <span

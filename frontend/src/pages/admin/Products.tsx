@@ -6,6 +6,7 @@ import type { Promotion } from "../../types/Promotion";
 import PageHeader from "../../components/PageHeader";
 import { card, colors, primaryButton } from "../../styles/common";
 import { Package, Plus, Pencil, Trash2, Search, ImageOff, Camera, X } from "lucide-react";
+import { getImageUrl } from "../../utils/imageUrl";
 
 const CATEGORIES = ["FOOD", "FAST_FOOD", "HOT_DRINK", "COLD_DRINK", "DESSERT", "SNACK"];
 
@@ -99,7 +100,7 @@ function Products() {
     setEditCategory(product.category);
     setEditPrice(product.price.toString());
     setEditImage(null);
-    setEditPreview(product.imageUrl ? `http://localhost:3000${product.imageUrl}` : "");
+    setEditPreview(product.imageUrl ? getImageUrl(product.imageUrl) : "");
   }
 
   async function handleUpdateProduct() {
@@ -203,6 +204,8 @@ function Products() {
         >
           {filteredProducts.map((product) => {
             const promotion = activePromotions.get(product.id);
+            const productImageUrl = getImageUrl(product.imageUrl);
+            const hasValidImage = Boolean(productImageUrl);
             return (
             <div
               key={product.id}
@@ -222,9 +225,9 @@ function Products() {
                   position: "relative",
                 }}
               >
-                {product.imageUrl ? (
+                {hasValidImage ? (
                   <img
-                    src={`http://localhost:3000${product.imageUrl}`}
+                    src={productImageUrl}
                     alt={product.name}
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     onError={(e) => {
@@ -236,7 +239,7 @@ function Products() {
                 ) : null}
                 <div
                   style={{
-                    display: product.imageUrl ? "none" : "flex",
+                    display: hasValidImage ? "none" : "flex",
                     position: "absolute",
                     inset: 0,
                     alignItems: "center",

@@ -7,6 +7,7 @@ import type { Promotion } from "../../types/Promotion";
 import { useTicket } from "../../context/TicketContext";
 import PageHeader from "../../components/PageHeader";
 import { colors } from "../../styles/common";
+import { getImageUrl } from "../../utils/imageUrl";
 
 function ProductMenu() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -240,22 +241,30 @@ function ProductMenu() {
                     background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
                   }}
                 >
-                  {product.imageUrl ? (
-                    <img
-                      src={`http://localhost:3000${product.imageUrl}`}
-                      alt={product.name}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                        const placeholder = e.currentTarget.nextElementSibling as HTMLElement | null;
-                        if (placeholder) placeholder.style.display = "flex";
-                      }}
-                    />
-                  ) : null}
+                  {(() => {
+                    const productImageUrl = getImageUrl(product.imageUrl);
+                    const hasValidImage = Boolean(productImageUrl);
+
+                    return hasValidImage ? (
+                      <img
+                        src={productImageUrl}
+                        alt={product.name}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          const placeholder = e.currentTarget.nextElementSibling as HTMLElement | null;
+                          if (placeholder) placeholder.style.display = "flex";
+                        }}
+                      />
+                    ) : null;
+                  })()}
 
                   <div
                     style={{
-                      display: product.imageUrl ? "none" : "flex",
+                      display: (() => {
+                        const productImageUrl = getImageUrl(product.imageUrl);
+                        return productImageUrl ? "none" : "flex";
+                      })(),
                       position: "absolute",
                       inset: 0,
                       alignItems: "center",
