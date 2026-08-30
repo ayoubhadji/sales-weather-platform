@@ -1,5 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Bell, CheckCircle2, Circle, Info, ShieldAlert } from "lucide-react";
+import {
+  AlertTriangle,
+  Bell,
+  BrainCircuit,
+  CheckCircle2,
+  Circle,
+  CloudSun,
+  Info,
+  Package,
+  Percent,
+  Settings,
+  ShieldAlert,
+  TrendingDown,
+} from "lucide-react";
 import PageHeader from "../../components/PageHeader";
 import api from "../../services/api";
 import { card, colors } from "../../styles/common";
@@ -12,12 +25,34 @@ type SeverityMeta = {
   icon: React.ComponentType<{ size?: number; color?: string }>;
 };
 
+type AlertType = Alert["type"];
+
+type AlertTypeMeta = {
+  label: string;
+  meaning: string;
+  color: string;
+  bg: string;
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+};
+
+const ALERT_TYPE_META: Record<AlertType, AlertTypeMeta> = {
+  WEATHER: { label: "Weather", meaning: "Weather-related impact", color: "#0f766e", bg: "#ccfbf1", icon: CloudSun },
+  ML: { label: "ML", meaning: "Prediction/model issue", color: "#7c3aed", bg: "#ede9fe", icon: BrainCircuit },
+  PROMOTION: { label: "Promotion", meaning: "Promotion recommendation/event", color: "#c2410c", bg: "#ffedd5", icon: Percent },
+  SALES: { label: "Sales", meaning: "Sales anomaly", color: "#0369a1", bg: "#e0f2fe", icon: TrendingDown },
+  PRODUCT: { label: "Product", meaning: "Product-related alert", color: "#a16207", bg: "#fef9c3", icon: Package },
+  SYSTEM: { label: "System", meaning: "Technical/system issue", color: "#475569", bg: "#e2e8f0", icon: Settings },
+};
+
+function getAlertTypeMeta(type?: string): AlertTypeMeta {
+  return ALERT_TYPE_META[type as AlertType] ?? ALERT_TYPE_META.SYSTEM;
+}
+
 // Normalizes whatever string your backend sends (critical/high/warning/info/etc.)
 // into a consistent visual treatment. Add more aliases here if your Severity
 // enum uses different values than what's mapped below.
 function getSeverityMeta(severity: string): SeverityMeta {
   const key = severity?.toLowerCase();
-
   if (key === "critical" || key === "high") {
     return { label: "Critical", color: "#dc2626", bg: "#dc26261a", icon: ShieldAlert };
   }
@@ -140,6 +175,7 @@ function Alerts() {
               <tr>
                 <th style={{ ...thStyle, width: 36 }}></th>
                 <th style={thStyle}>Severity</th>
+                <th style={thStyle}>Type</th>
                 <th style={thStyle}>Title</th>
                 <th style={thStyle}>Message</th>
                 <th style={thStyle}>Raised</th>
@@ -177,6 +213,25 @@ function Alerts() {
                         {meta.label}
                       </span>
                     </td>
+                    <td style={tdStyle}>
+                      {(() => {
+                        const typeMeta = getAlertTypeMeta(alert.type);
+                        const TypeIcon = typeMeta.icon;
+                        return (
+                          <span
+                            title={typeMeta.meaning}
+                            style={{
+                              ...typeBadge,
+                              background: typeMeta.bg,
+                              color: typeMeta.color,
+                            }}
+                          >
+                            <TypeIcon size={13} color={typeMeta.color} />
+                            {typeMeta.label}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td
                       style={{
                         ...tdStyle,
@@ -190,7 +245,7 @@ function Alerts() {
                       {alert.message}
                     </td>
                     <td style={{ ...tdStyle, color: colors.textMuted, fontSize: 13 }}>
-                      {timeAgo((alert as any).createdAt) ?? "—"}
+                      {timeAgo(alert.createdAt) ?? "—"}
                     </td>
                     <td style={{ ...tdStyle, textAlign: "right" }}>
                       {alert.isRead ? (
@@ -283,6 +338,17 @@ function EmptyState({ hasFilter }: { hasFilter: boolean }) {
     </div>
   );
 }
+
+const typeBadge: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 5,
+  padding: "5px 8px",
+  borderRadius: 8,
+  fontSize: 12,
+  fontWeight: 600,
+  whiteSpace: "nowrap",
+};
 
 const statusStrip: React.CSSProperties = {
   display: "flex",

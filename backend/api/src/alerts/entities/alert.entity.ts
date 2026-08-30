@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 
 import { AlertSeverity } from '../../common/enums/alert-severity.enum';
+import { AlertType } from '../../common/enums/alert-type.enum';
 
 @Entity('alerts')
 export class Alert {
@@ -28,6 +29,16 @@ export class Alert {
     enum: AlertSeverity,
   })
   severity!: AlertSeverity;
+
+  // Categorizes where the alert came from (weather-driven demand drop,
+  // ML pipeline issue, promotion expiring, sales anomaly, stale product,
+  // or a generic system issue). Defaults to SYSTEM for older rows.
+  @Column({
+    type: 'enum',
+    enum: AlertType,
+    default: AlertType.SYSTEM,
+  })
+  type!: AlertType;
 
   @Column({
     default: false,

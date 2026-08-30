@@ -2,10 +2,12 @@ import {
   IsBoolean,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   MaxLength,
 } from 'class-validator';
 import { AlertSeverity } from '../../common/enums/alert-severity.enum';
+import { AlertType } from '../../common/enums/alert-type.enum';
 
 export class CreateAlertDto {
   @IsString()
@@ -20,6 +22,11 @@ export class CreateAlertDto {
   @IsEnum(AlertSeverity)
   severity!: AlertSeverity;
 
+  @IsOptional()
+  @IsEnum(AlertType)
+  type?: AlertType;
+
+  @IsOptional()
   @IsBoolean()
-  isRead!: boolean;
+  isRead?: boolean;
 }

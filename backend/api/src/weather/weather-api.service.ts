@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
-import { WeatherCondition } from 'src/common/enums/weather-condition.enum';
+import { WeatherCondition } from '../common/enums/weather-condition.enum';
 import { Repository } from 'typeorm';
 import { Weather } from './entities/weather.entity';
 import { InjectRepository } from '@nestjs/typeorm';
