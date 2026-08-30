@@ -9,7 +9,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { SalesItem } from '../../sales-item/entities/sales-item.entity';
-import { User } from 'src/users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('sales_tickets')
 export class SalesTicket {

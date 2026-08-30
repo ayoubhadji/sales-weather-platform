@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 
 import { UserRole } from '../../common/enums/user-role.enum';
-import { SalesTicket } from 'src/sales-ticket/entities/sales-ticket.entity';
+import { SalesTicket } from '../../sales-ticket/entities/sales-ticket.entity';
 
 @Entity('users')
 export class User {

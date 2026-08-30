@@ -19,7 +19,19 @@ describe('AlertsSchedulerService', () => {
       }),
     } as unknown as WeatherApiService;
 
-    const service = new AlertsSchedulerService(alertsService, weatherApiService);
+    const productRepository = { find: jest.fn().mockResolvedValue([]) } as any;
+    const promotionRepository = { find: jest.fn().mockResolvedValue([]) } as any;
+    const salesTicketRepository = { count: jest.fn().mockResolvedValue(1) } as any;
+    const salesItemRepository = { find: jest.fn().mockResolvedValue([]) } as any;
+
+    const service = new AlertsSchedulerService(
+      alertsService,
+      weatherApiService,
+      productRepository,
+      promotionRepository,
+      salesTicketRepository,
+      salesItemRepository,
+    );
 
     await service.checkWeatherAnomaly();
 
@@ -28,6 +40,44 @@ describe('AlertsSchedulerService', () => {
         severity: AlertSeverity.HIGH,
         type: AlertType.WEATHER,
         title: expect.stringContaining('Weather anomaly'),
+      }),
+    );
+  });
+
+  it('raises a sales anomaly alert when no sales were recorded recently', async () => {
+    const alertsService = {
+      raiseOnce: jest.fn().mockResolvedValue({ id: 2 }),
+    } as unknown as AlertsService;
+
+    const weatherApiService = {
+      getCurrentWeather: jest.fn().mockResolvedValue({
+        weatherCondition: WeatherCondition.SUNNY,
+        rainfall: 0,
+        temperature: 30,
+      }),
+    } as unknown as WeatherApiService;
+
+    const productRepository = { find: jest.fn().mockResolvedValue([]) } as any;
+    const promotionRepository = { find: jest.fn().mockResolvedValue([]) } as any;
+    const salesTicketRepository = { count: jest.fn().mockResolvedValue(0) } as any;
+    const salesItemRepository = { find: jest.fn().mockResolvedValue([]) } as any;
+
+    const service = new AlertsSchedulerService(
+      alertsService,
+      weatherApiService,
+      productRepository,
+      promotionRepository,
+      salesTicketRepository,
+      salesItemRepository,
+    );
+
+    await service.checkSalesAnomaly();
+
+    expect(alertsService.raiseOnce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: AlertSeverity.HIGH,
+        type: AlertType.SALES,
+        title: expect.stringContaining('Sales anomaly'),
       }),
     );
   });
