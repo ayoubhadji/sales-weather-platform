@@ -16,6 +16,7 @@ import {
   UtensilsCrossed,
   Receipt,
   Bell,
+  Leaf,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -49,6 +50,7 @@ const adminNavItems: NavItem[] = [
   { label: "Franchises", icon: Store, path: "/admin/franchises" },
   { label: "Meteo", icon: CloudSun, path: "/admin/weather" },
   { label: "Rapports", icon: FileText, path: "/admin/reports" },
+  { label: "Durabilité", icon: Leaf, path: "/admin/sustainability" },
   { label: "Parametres", icon: Settings, path: "/admin/settings" },
 ];
 

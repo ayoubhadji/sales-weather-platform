@@ -13,6 +13,7 @@ import AdminPredictions from "./pages/admin/Predictions";
 import AdminPromotions from "./pages/admin/Promotions";
 import AdminAlerts from "./pages/admin/Alerts";
 import AdminWeather from "./pages/admin/Weather";
+import AdminSustainability from "./pages/admin/Sustainability";
 
 import FranchiseLayout from "./layouts/FranchiseLayout";
 import FranchiseDashboard from "./pages/franchise/Dashboard";
@@ -52,6 +53,7 @@ function App() {
         <Route path="franchises" element={<Franchises />} />
         <Route path="weather" element={<AdminWeather />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="sustainability" element={<AdminSustainability />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
 

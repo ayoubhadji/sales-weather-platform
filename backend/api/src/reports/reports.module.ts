@@ -3,12 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
+import { SustainabilityService } from './sustainability.service';
 import { GroqAdvisorService } from './Groq-advisor.service';
 
 import { SalesTicket } from '../sales-ticket/entities/sales-ticket.entity';
 import { SalesItem } from '../sales-item/entities/sales-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { User } from '../users/entities/user.entity';
+import { SalesPrediction } from '../sales-predictions/entities/sales-prediction.entity';
 
 @Module({
   imports: [
@@ -17,9 +19,10 @@ import { User } from '../users/entities/user.entity';
       SalesItem,
       Product,
       User,
+      SalesPrediction,
     ]),
   ],
   controllers: [ReportsController],
-  providers: [ReportsService, GroqAdvisorService],
+  providers: [ReportsService, SustainabilityService, GroqAdvisorService],
 })
 export class ReportsModule {}
